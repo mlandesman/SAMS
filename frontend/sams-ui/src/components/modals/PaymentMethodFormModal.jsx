@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
-import { useClient } from '../../context/ClientContext';
 import '../../styles/SandylandModalTheme.css';
 
 /**
  * Modal for creating/editing payment methods
  */
 const PaymentMethodFormModal = ({ paymentMethod = null, isOpen, onClose, onSave }) => {
-  const { selectedClient } = useClient();
-  
   const [formData, setFormData] = useState({
     name: '',
     type: 'bank',

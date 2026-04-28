@@ -13,13 +13,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { getOwnerInfo } from '../utils/unitUtils';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { getFirstOwnerName, normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
-  calendarToFiscalMonth,
   fiscalToCalendarMonth,
-  getFiscalYearLabel,
   getFiscalYear,
   isFiscalYear
 } from '../utils/fiscalYearUtils';
@@ -30,6 +28,7 @@ import { totalCreditPesosFromDuesDataByUnitsList } from '@shared/utils/hoaCredit
 import debug from '../utils/debug';
 import ContextMenu from '../components/ContextMenu';
 import PaymentDetailsModal from '../components/PaymentDetailsModal';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './HOADuesView.css';
 
 function HOADuesView() {
@@ -51,6 +50,7 @@ function HOADuesView() {
   // Get the client name from ClientContext
   const { selectedClient } = useClient();
   const { samsUser } = useAuth(); // Get user for role checking
+  const { t } = useDesktopStrings();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -66,9 +66,6 @@ function HOADuesView() {
   console.log('HOA Dues View - Dues Frequency:', duesFrequency);
   console.log('HOA Dues View - Selected Year:', selectedYear);
   
-  // Note: selectedUnitId and selectedMonth kept for context menu navigation
-  const [selectedUnitId, setSelectedUnitId] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(null);
   const [highlightedUnit, setHighlightedUnit] = useState(null);
   
   // Credit balance edit modal state
@@ -156,7 +153,7 @@ function HOADuesView() {
         }
       } else {
         // Paid but no transaction reference
-        alert('No Matching Transaction Record');
+        alert(t('hoadues.noMatchingTransaction'));
       }
     } else {
       // Not paid - only admin can open payment modal; non-admin view-only (navigate without opening)
@@ -381,7 +378,7 @@ function HOADuesView() {
     if (managers.length > 0) {
       lines.push(`Manager${managers.length > 1 ? 's' : ''}: ${managers.map(m => m.name).join(', ')}`);
     }
-    return lines.join('\n') || 'No contact info';
+    return lines.join('\n') || t('hoadues.noContactInfo');
   };
 
   // Handle unit header context menu (right-click for email/whatsapp)
@@ -404,16 +401,16 @@ function HOADuesView() {
         ? `?cc=${managerEmails.join(',')}`
         : '';
       options.push({
-        label: 'Email Owners & Managers',
+        label: t('hoadues.emailOwnersManagers'),
         icon: '✉️',
         onClick: () => { window.location.href = `mailto:${toField}${ccField}`; }
       });
     } else {
-      options.push({ label: 'No emails on file', icon: '✉️', disabled: true, onClick: () => {} });
+      options.push({ label: t('hoadues.noEmailsOnFile'), icon: '✉️', disabled: true, onClick: () => {} });
     }
 
     options.push({
-      label: 'WhatsApp (coming soon)',
+      label: t('hoadues.whatsappSoon'),
       icon: '💬',
       disabled: true,
       onClick: () => {}
@@ -546,7 +543,6 @@ function HOADuesView() {
     // Compare selected year against current fiscal year
     const selectedYearIsCurrent = selectedYear === currentFiscalYear;
     const isPastYear = selectedYear < currentFiscalYear;
-    const isFutureYear = selectedYear > currentFiscalYear;
     
     // If we're viewing current fiscal year and the month is current or past, mark unpaid as late
     if (selectedYearIsCurrent && fiscalMonth <= currentFiscalMonth) return 'payment-late';
@@ -723,158 +719,17 @@ function HOADuesView() {
     }, 0);
   };
 
-  if (loading) return <LoadingSpinner variant="logo" message="Loading HOA dues data..." size="medium" />;
-  if (error) return <div className="error-container">Error: {error}</div>;
+  if (loading) return <LoadingSpinner variant="logo" message={t('hoadues.loadingData')} size="medium" />;
+  if (error) return <div className="error-container">{t('hoadues.errorPrefix')}: {error}</div>;
   
   // Ensure we have both units and dues data before rendering
   if (!units || units.length === 0 || !duesData || Object.keys(duesData).length === 0) {
-    return <LoadingSpinner variant="logo" message="Loading HOA dues data..." size="medium" />;
+    return <LoadingSpinner variant="logo" message={t('hoadues.loadingData')} size="medium" />;
   }
 
   // Format number with commas
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US').format(Math.round(num));
-  };
-
-  // Format credit history for tooltip display
-  const formatCreditHistoryTooltip = (creditHistory, currentBalance) => {
-    let tooltip = `Credit Balance: ${formatAsMXN(currentBalance || 0)}`;
-    
-    if (!creditHistory || creditHistory.length === 0) {
-      return tooltip;
-    }
-    
-    // Show last 5 entries, most recent first
-    const recentHistory = creditHistory
-      .slice(-5)
-      .reverse();
-    
-    if (recentHistory.length > 0) {
-      tooltip += '\n\nRecent History:';
-      
-      recentHistory.forEach(entry => {
-        // Handle various timestamp formats
-        let dateStr = 'Unknown Date';
-        if (entry.timestamp) {
-          // Check for nested display object (backend formatted structure)
-          if (entry.timestamp.display && typeof entry.timestamp.display === 'object') {
-            // Backend returns formatted timestamp with nested display object
-            if (entry.timestamp.display.display && typeof entry.timestamp.display.display === 'string') {
-              dateStr = entry.timestamp.display.display;
-            } else if (entry.timestamp.display.displayFull && typeof entry.timestamp.display.displayFull === 'string') {
-              dateStr = entry.timestamp.display.displayFull;
-            } else if (entry.timestamp.display.iso && typeof entry.timestamp.display.iso === 'string') {
-              try {
-                const date = new Date(entry.timestamp.display.iso);
-                dateStr = date.toLocaleDateString();
-              } catch (e) {
-                dateStr = 'Invalid Date';
-              }
-            }
-          } else if (entry.timestamp.displayFull && typeof entry.timestamp.displayFull === 'object') {
-            // Check displayFull object
-            if (entry.timestamp.displayFull.display && typeof entry.timestamp.displayFull.display === 'string') {
-              dateStr = entry.timestamp.displayFull.display;
-            } else if (entry.timestamp.displayFull.iso && typeof entry.timestamp.displayFull.iso === 'string') {
-              try {
-                const date = new Date(entry.timestamp.displayFull.iso);
-                dateStr = date.toLocaleDateString();
-              } catch (e) {
-                dateStr = 'Invalid Date';
-              }
-            }
-          } else if (typeof entry.timestamp.display === 'string') {
-            // Direct string display
-            dateStr = entry.timestamp.display;
-          } else if (typeof entry.timestamp.displayFull === 'string') {
-            // Direct string displayFull
-            dateStr = entry.timestamp.displayFull;
-          } else if (entry.timestamp.toDate) {
-            // Firestore timestamp object
-            try {
-              const date = entry.timestamp.toDate();
-              dateStr = date.toLocaleDateString();
-            } catch (e) {
-              dateStr = 'Invalid Date';
-            }
-          } else if (entry.timestamp._seconds) {
-            // Firestore timestamp as plain object
-            try {
-              const date = new Date(entry.timestamp._seconds * 1000);
-              dateStr = date.toLocaleDateString();
-            } catch (e) {
-              dateStr = 'Invalid Date';
-            }
-          } else if (typeof entry.timestamp === 'string') {
-            try {
-              dateStr = new Date(entry.timestamp).toLocaleDateString();
-            } catch (e) {
-              dateStr = entry.timestamp; // Use as-is if parsing fails
-            }
-          }
-        } else if (entry.date) {
-          try {
-            dateStr = new Date(entry.date).toLocaleDateString();
-          } catch (e) {
-            dateStr = 'Invalid Date';
-          }
-        }
-        
-        // Format the entry type (remove underscores, capitalize)
-        let typeLabel = String(entry.type || 'UNKNOWN');
-        
-        // Check if the type contains "[object Object]" corruption
-        if (typeLabel.includes('[object Object]')) {
-          // Try to extract meaningful part or use default
-          if (entry.description && typeof entry.description === 'string' && !entry.description.includes('[object Object]')) {
-            typeLabel = 'Credit Change';
-          } else {
-            typeLabel = 'Credit Change';
-          }
-        } else {
-          // Normal formatting
-          typeLabel = typeLabel
-            .replace(/_/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-        }
-        
-        // Handle amount formatting - creditBalanceHistory from API is already in pesos (fix #3: remove heuristic)
-        const displayAmount = entry.amount ?? 0;
-        const amount = formatAsMXN(displayAmount);
-        
-        // Build the history line
-        let historyLine = `${dateStr}: ${typeLabel} ${amount}`;
-        
-        // Add description if available (avoid showing [object Object])
-        if (entry.description) {
-          let descStr = typeof entry.description === 'string' 
-            ? entry.description 
-            : JSON.stringify(entry.description);
-          
-          // Clean up corrupted descriptions
-          if (descStr.includes('[object Object]')) {
-            // Try to extract meaningful information
-            if (descStr.includes('Transaction Deletion')) {
-              descStr = 'from Transaction Deletion';
-            } else if (descStr.includes('Credit')) {
-              descStr = 'Credit adjustment';
-            } else {
-              descStr = null; // Skip corrupted descriptions
-            }
-          }
-          
-          if (descStr && descStr !== '[object Object]' && descStr !== '{}') {
-            historyLine += ` - ${descStr}`;
-          }
-        }
-        
-        tooltip += `\n${historyLine}`;
-      });
-    }
-    
-    return tooltip;
   };
 
   // Format comprehensive payment notes for tooltip
@@ -916,7 +771,7 @@ function HOADuesView() {
         {(isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id)) && (
           <button className="action-item" onClick={handleAddPaymentClick}>
             <FontAwesomeIcon icon={faPlus} />
-            <span>Add Payment</span>
+            <span>{t('hoadues.addPayment')}</span>
           </button>
         )}
         <div className="year-navigation">
@@ -964,13 +819,13 @@ function HOADuesView() {
                   </th>
                 );
               })}
-              <th className="total-header">Total Paid</th>
-              <th className="remaining-header">To Be Collected</th>
+              <th className="total-header">{t('hoadues.totalPaid')}</th>
+              <th className="remaining-header">{t('hoadues.toBeCollected')}</th>
             </tr>
             
             {/* Subheader row with scheduled amounts */}
             <tr className="owner-header-row">
-              <th className="dues-label">Dues{duesFrequency === 'quarterly' ? '/Qtr' : '/Mo'}</th>
+              <th className="dues-label">{duesFrequency === 'quarterly' ? t('hoadues.duesPerQuarter') : t('hoadues.duesPerMonth')}</th>
               {units.map(unit => {
                 const monthlyAmount = duesData[unit.unitId]?.scheduledAmount || 0;
                 const displayAmount = duesFrequency === 'quarterly' ? monthlyAmount * 3 : monthlyAmount;
@@ -997,7 +852,7 @@ function HOADuesView() {
           <tbody>
             {/* Credit row */}
             <tr className="credit-row">
-              <td className="row-label">Credit</td>
+              <td className="row-label">{t('hoadues.credit')}</td>
               {units.map(unit => {
                 const unitData = duesData[unit.unitId] || {};
                 const hasCreditHistory = unitData.creditBalanceHistory && unitData.creditBalanceHistory.length > 0;
@@ -1014,17 +869,17 @@ function HOADuesView() {
                     onContextMenu={(e) => handleCreditContextMenu(e, unit.unitId, unitData.creditBalance || 0)}
                     title={(() => {
                       const creditBalance = unitData.creditBalance || 0;
-                      let tooltip = `Credit Balance: $${formatNumber(creditBalance)}`;
+                      let tooltip = t('hoadues.tooltip.creditBalance', { amount: `$${formatNumber(creditBalance)}` });
                       
                       if (hasCreditHistory) {
                         const lastUpdate = unitData.creditBalanceHistory[unitData.creditBalanceHistory.length - 1];
                         if (lastUpdate?.date) {
-                          tooltip += `\nLast updated: ${lastUpdate.date}`;
+                          tooltip += `\n${t('hoadues.tooltip.lastUpdated', { date: lastUpdate.date })}`;
                         }
                       }
                       
-                      tooltip += '\n\nClick: View history';
-                      tooltip += '\nRight-click: More options ⋮';
+                      tooltip += `\n\n${t('hoadues.tooltip.clickHistory')}`;
+                      tooltip += `\n${t('hoadues.tooltip.rightClick')} ⋮`;
                       
                       return tooltip;
                     })()}
@@ -1102,12 +957,12 @@ function HOADuesView() {
                           if (paymentMonth) {
                             const dateTime = extractDateTimeFromPayment(paymentMonth);
                             if (dateTime) {
-                              tooltipLines.push(`Last payment: ${dateTime}`);
+                              tooltipLines.push(`${t('hoadues.lastPaymentPrefix')}: ${dateTime}`);
                             }
                           }
                           
                           tooltipLines.push('');
-                          tooltipLines.push('Click: View transaction');
+                          tooltipLines.push(t('hoadues.clickViewTransaction'));
                         } else if (quarterStatus.status === 'partial') {
                           tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalPaid)} of $${formatNumber(quarterStatus.totalDue)} paid`);
                           if (totalPenalties > 0) {
@@ -1115,15 +970,15 @@ function HOADuesView() {
                           }
                           tooltipLines.push(`Remaining: $${formatNumber(quarterStatus.remaining)}`);
                           tooltipLines.push('');
-                          tooltipLines.push('Click: Make payment');
+                          tooltipLines.push(t('hoadues.clickMakePayment'));
                         } else {
                           tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalDue)} due`);
-                          tooltipLines.push('Status: Unpaid');
+                          tooltipLines.push(t('hoadues.statusUnpaid'));
                           tooltipLines.push('');
-                          tooltipLines.push('Click: Make payment');
+                          tooltipLines.push(t('hoadues.clickMakePayment'));
                         }
                         
-                        tooltipLines.push('Right-click: More options ⋮');
+                        tooltipLines.push(`${t('hoadues.tooltip.rightClick')} ⋮`);
                         
                         const tooltip = tooltipLines.join('\n');
                         
@@ -1219,7 +1074,6 @@ function HOADuesView() {
                   <td className={`row-label ${monthClass}`}>{monthLabel}</td>
                   {units.map(unit => {
                     const paymentStatus = getPaymentStatus(unit, fiscalMonth);
-                    const hasNotes = paymentStatus.notes && paymentStatus.notes.length > 0;
                     
                     return (
                       <td 
@@ -1249,7 +1103,7 @@ function HOADuesView() {
           <tfoot>
             {/* Total row */}
             <tr className="totals-row">
-              <td className="totals-label">Total Paid</td>
+              <td className="totals-label">{t('hoadues.totalPaid')}</td>
               {units.map(unit => (
                 <td key={`total-${unit.unitId}`} className="unit-total">
                   ${formatNumber(calculateUnitTotal(unit.unitId))}
@@ -1275,23 +1129,23 @@ function HOADuesView() {
       <div className="hoa-dues-legend">
         <div className="legend-item">
           <div className="legend-color payment-paid"></div>
-          <div className="legend-text">Paid in Full</div>
+          <div className="legend-text">{t('hoadues.legend.paidInFull')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color payment-partial"></div>
-          <div className="legend-text">Partial Payment</div>
+          <div className="legend-text">{t('hoadues.legend.partialPayment')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color payment-late"></div>
-          <div className="legend-text">Late Payment</div>
+          <div className="legend-text">{t('hoadues.legend.latePayment')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color row-label current-month"></div>
-          <div className="legend-text">Current Month</div>
+          <div className="legend-text">{t('hoadues.legend.currentMonth')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color"></div>
-          <div className="legend-text">Hover to read payment notes</div>
+          <div className="legend-text">{t('hoadues.legend.hoverNotes')}</div>
         </div>
       </div>
       

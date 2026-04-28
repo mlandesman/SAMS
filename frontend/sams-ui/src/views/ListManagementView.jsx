@@ -29,6 +29,7 @@ import { useClient } from '../context/ClientContext';
 import { useListManagement } from '../context/ListManagementContext';
 import { useStatusBar } from '../context/StatusBarContext';
 import { useAuth } from '../context/AuthContext';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils';
@@ -47,6 +48,7 @@ import { getPaymentMethods } from '../api/paymentMethods';
 import { getUnits } from '../api/units';
 import { fetchAllExchangeRates } from '../api/exchangeRates';
 import { getMexicoDateTime, getMexicoDateString } from '../utils/timezone';
+import { buildListEntityWritePayload, resolveListEntityField } from '../utils/listLocalization';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
@@ -89,6 +91,7 @@ function ListManagementView() {
   const { updateEntryCount, searchTerm } = useListManagement();
   const { setStatusInfo, clearStatusInfo } = useStatusBar();
   const { samsUser } = useAuth();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const secureApi = useSecureApi();
   const [tabIndex, setTabIndex] = useState(0);
   const [availableLists, setAvailableLists] = useState([]);
@@ -398,9 +401,23 @@ function ListManagementView() {
       case 'category':
         title = 'Category Details';
         detailFields = [
-          { key: 'name', label: 'Name' },
-          { key: 'type', label: 'Type' },
-          { key: 'description', label: 'Description', type: 'multiline' },
+          {
+            key: 'name',
+            label: 'Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'category', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: (value, item) => resolveListEntityField(item, 'category', 'type', { language, localizationEnabled }),
+          },
+          {
+            key: 'description',
+            label: 'Description',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'category', 'description', { language, localizationEnabled }),
+          },
           { key: 'code', label: 'Category Code' },
           { key: 'parentCategory', label: 'Parent Category' },
           { key: 'status', label: 'Status', type: 'status' }
@@ -419,7 +436,12 @@ function ListManagementView() {
         title = 'Unit Details';
         detailFields = [
           { key: 'unitId', label: 'Unit ID' },
-          { key: 'unitName', label: 'Unit Name' },
+          {
+            key: 'unitName',
+            label: 'Unit Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'unit', 'unitName', { language, localizationEnabled, hardFallback: item.unitId || '' }),
+          },
           { 
             key: 'owners', 
             label: 'Owners',
@@ -446,8 +468,16 @@ function ListManagementView() {
               }).join(', ');
             }
           },
-          { key: 'status', label: 'Status' },
-          { key: 'type', label: 'Type' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'status', { language, localizationEnabled }),
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'propertyType', { language, localizationEnabled }),
+          },
           { 
             key: 'squareFeet', 
             label: 'Square Feet',
@@ -481,7 +511,12 @@ function ListManagementView() {
             type: 'money'
           },
           { key: 'accessCode', label: 'Access Code' },
-          { key: 'notes', label: 'Notes', type: 'multiline' }
+          {
+            key: 'notes',
+            label: 'Notes',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'notes', { language, localizationEnabled }),
+          }
         ];
         break;
       case 'users':
@@ -1065,15 +1100,31 @@ function ListManagementView() {
 
     try {
       const saveOperation = async () => {
+        const payload = buildListEntityWritePayload('category', categoryData, activeModal.itemData || {}, {
+          language,
+          localizationEnabled,
+        });
+
         if (activeModal.action === 'edit') {
           // Update existing category - use the original category's document ID
           console.log(`✏️ Updating category: ${categoryData.name}`);
-          await updateCategory(selectedClient.id, activeModal.itemData.id, categoryData);
+          await updateCategory(selectedClient.id, activeModal.itemData.id, payload);
           console.log('✅ Category updated successfully');
         } else {
           // Create new category
           console.log(`➕ Creating category: ${categoryData.name}`);
-          await createCategory(selectedClient.id, categoryData);
+          const createResult = await createCategory(selectedClient.id, payload);
+
+          // Create route stores name_es but does not persist description_es yet;
+          // follow with update so both EN/ES descriptions entered in one modal are saved.
+          if (payload.description_es) {
+            const createdCategoryId = createResult?.data?.id || createResult?.id;
+            if (createdCategoryId) {
+              await updateCategory(selectedClient.id, createdCategoryId, {
+                description_es: payload.description_es,
+              });
+            }
+          }
           console.log('✅ Category created successfully');
         }
       };
@@ -1127,15 +1178,20 @@ function ListManagementView() {
 
     try {
       const saveOperation = async () => {
+        const payload = buildListEntityWritePayload('unit', unitData, activeModal.itemData || {}, {
+          language,
+          localizationEnabled,
+        });
+
         // For units, we need to use unitId as the document ID (since units don't have an 'id' field)
         // The activeModal.itemData will have unitId from the backend's listUnits function
         if (activeModal.action === 'edit' && activeModal.itemData?.unitId) {
           // Update existing unit - use unitId as the document ID
-          await updateUnit(selectedClient.id, activeModal.itemData.unitId, unitData);
+          await updateUnit(selectedClient.id, activeModal.itemData.unitId, payload);
           console.log('✅ Unit updated successfully');
         } else {
           // Create new unit
-          await createUnit(selectedClient.id, unitData);
+          await createUnit(selectedClient.id, payload);
           console.log('✅ Unit created successfully');
         }
       };

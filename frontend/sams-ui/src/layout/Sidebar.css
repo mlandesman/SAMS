@@ -81,10 +81,39 @@
 /* Specific styling for the Change Client button */
 .change-client-button {
   /* Inherits li styles, including new font-size and color */
-  margin-top: auto; 
   background-color: #ffffff; 
   /* border-top: 1px solid #2a6656; 
   border-bottom: none; */
+}
+
+.sidebar-bottom-controls {
+  margin-top: auto;
+  padding: 10px 14px 14px 14px;
+  border-top: 1px solid #dbe2ef;
+  background-color: #ffffff;
+}
+
+.sidebar-language-toggle {
+  width: 100%;
+  border: 1px solid #b8c7e2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2a44;
+  background-color: #eef3ff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.sidebar-language-toggle:hover {
+  background-color: #dde7ff;
+}
+
+.sidebar-language-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f2f4f8;
 }
 
 /* Mobile responsive design - hide sidebar on small screens */

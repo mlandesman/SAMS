@@ -3,42 +3,37 @@
  * Ensures user has access to the currently selected client before rendering content
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
+import { useDesktopStrings } from '../../hooks/useDesktopStrings';
 
 const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
   const { selectedClient } = useClient();
   const { samsUser, loading } = useAuth();
-
-  // Still loading user profile
-  if (loading) {
-    return <div className="loading-spinner">Loading...</div>;
-  }
-
-  // No client selected - this should trigger client selection modal  
-  if (!selectedClient) {
-    console.warn('⚠️ ClientProtectedRoute: No client selected');
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // User profile not loaded - wait for it
-  if (!samsUser) {
-    console.warn('⚠️ ClientProtectedRoute: User profile not loaded, waiting...');
-    return <div className="loading-spinner">Loading user profile...</div>;
-  }
+  const { t } = useDesktopStrings();
 
   // Memoize access check to prevent re-renders
   const accessCheck = useMemo(() => {
+    if (loading) {
+      return { allowed: false, reason: 'loading' };
+    }
+
+    if (!selectedClient) {
+      return { allowed: false, reason: 'no_client' };
+    }
+
+    if (!samsUser) {
+      return { allowed: false, reason: 'profile_loading' };
+    }
+
     // Validate client access - security check
     const hasClientAccess = samsUser.globalRole === 'superAdmin' ||
                            samsUser.propertyAccess?.[selectedClient.id];
 
     if (!hasClientAccess) {
       console.error('🚫 ClientProtectedRoute: Access denied to client', selectedClient.id);
-      // Clear the unauthorized client from context and storage
-      localStorage.removeItem('selectedClient');
       return { allowed: false, reason: 'client_access_denied' };
     }
 
@@ -75,7 +70,28 @@ const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
     }
     
     return { allowed: true, reason: 'access_granted' };
-  }, [samsUser, selectedClient, requiredPermission]);
+  }, [loading, samsUser, selectedClient, requiredPermission]);
+
+  useEffect(() => {
+    if (accessCheck.reason === 'client_access_denied') {
+      localStorage.removeItem('selectedClient');
+    }
+  }, [accessCheck.reason]);
+
+  if (accessCheck.reason === 'loading') {
+    return <div className="loading-spinner">{t('route.loading')}</div>;
+  }
+
+  // No client selected - this should trigger client selection modal
+  if (accessCheck.reason === 'no_client') {
+    console.warn('⚠️ ClientProtectedRoute: No client selected');
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (accessCheck.reason === 'profile_loading') {
+    console.warn('⚠️ ClientProtectedRoute: User profile not loaded, waiting...');
+    return <div className="loading-spinner">{t('route.loadingProfile')}</div>;
+  }
 
   // Handle access denied cases
   if (!accessCheck.allowed) {
@@ -85,10 +101,10 @@ const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
     if (accessCheck.reason === 'permission_denied') {
       return (
         <div className="access-denied">
-          <h3>Access Denied</h3>
-          <p>You don't have permission to access this feature.</p>
-          <p>Required permission: {accessCheck.requiredPermission}</p>
-          <p>Your role: {accessCheck.clientRole || 'No role assigned'}</p>
+          <h3>{t('route.accessDenied.title')}</h3>
+          <p>{t('route.accessDenied.message')}</p>
+          <p>{t('route.accessDenied.requiredPermission')}: {accessCheck.requiredPermission}</p>
+          <p>{t('route.accessDenied.userRole')}: {accessCheck.clientRole || t('route.accessDenied.noRole')}</p>
         </div>
       );
     }

@@ -6,6 +6,7 @@ import TransactionFiltersProvider from './context/TransactionFiltersContext.jsx'
 import { StatusBarProvider } from './context/StatusBarContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExchangeRateProvider } from './context/ExchangeRateContext';
+import { DesktopLanguageProvider } from './context/DesktopLanguageContext';
 import { useExchangeRates } from './hooks/useExchangeRates';
 import MainLayout from './layout/MainLayout';
 import SplashScreen from './views/SplashScreen';
@@ -14,6 +15,7 @@ import ExchangeRateModal from './components/ExchangeRateModal';
 import DashboardView from './views/DashboardView';
 import TransactionsView from './views/TransactionsView';
 import ActivityView from './views/ActivityView';
+import ReportsView from './views/ReportsView';
 import ListManagementView from './views/ListManagementView';
 import DigitalReceiptDemo from './views/DigitalReceiptDemo';
 import TestRoute from './components/TestRoute';
@@ -286,6 +288,12 @@ function AppContent() {
                       <ReconciliationView />
                     </ClientProtectedRoute>
                   } />
+                  {/* Explicit reports alias for route checks; behavior matches dynamic activity routing */}
+                  <Route path="/reports" element={
+                    <ClientProtectedRoute>
+                      <ReportsView />
+                    </ClientProtectedRoute>
+                  } />
                   {/* Dynamic route for activities from the client configuration */}
                   <Route path="/:activity" element={
                     <ClientProtectedRoute>
@@ -330,11 +338,13 @@ function App() {
             <AuthProvider>
               <ExchangeRateProvider>
                 <ClientProvider>
-                  <TransactionsProvider>
-                    <TransactionFiltersProvider>
-                      <AppContent />
-                    </TransactionFiltersProvider>
-                  </TransactionsProvider>
+                  <DesktopLanguageProvider>
+                    <TransactionsProvider>
+                      <TransactionFiltersProvider>
+                        <AppContent />
+                      </TransactionFiltersProvider>
+                    </TransactionsProvider>
+                  </DesktopLanguageProvider>
                 </ClientProvider>
               </ExchangeRateProvider>
             </AuthProvider>

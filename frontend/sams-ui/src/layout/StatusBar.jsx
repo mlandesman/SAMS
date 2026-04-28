@@ -7,15 +7,16 @@ import ListManagementStatusContent from '../components/ListManagementStatusConte
 import { useTransactionsContext } from '../context/TransactionsContext';
 import { useTransactionFilters } from '../hooks/useTransactionFilters';
 import { useStatusBar } from '../context/StatusBarContext';
-import { useVersionInfo, getEnvironmentStyles } from '../utils/versionUtils';
+import { useVersionInfo } from '../utils/versionUtils';
 import AboutModal from './AboutModal';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './StatusBar.css';
 
 const StatusBar = ({ children }) => {
   const location = useLocation();
   const [aboutOpen, setAboutOpen] = useState(false);
   const versionInfo = useVersionInfo(); // Use hook for reactive updates
-  const envStyles = getEnvironmentStyles();
+  const { t } = useDesktopStrings();
   
   const { transactionCount } = useTransactionsContext();
   const {
@@ -37,6 +38,10 @@ const StatusBar = ({ children }) => {
   // Check what page we're on
   const isTransactionsPage = location.pathname === '/transactions';
   const isListManagementPage = location.pathname === '/listmanagement' || location.pathname === '/lists';
+
+  const systemErrorCountKey = errorMonitorStatus?.count === 1
+    ? 'status.systemErrorCount.one'
+    : 'status.systemErrorCount.other';
 
   return (
     <div className="status-bar">
@@ -81,7 +86,7 @@ const StatusBar = ({ children }) => {
           onClick={handleStatusClick}
         >
           <span className="connection-indicator">●</span>
-          <span className="connection-text">Connected — {versionInfo.appName}</span>
+          <span className="connection-text">{t('status.connected')} — {versionInfo.appName}</span>
           {errorMonitorStatus && !errorMonitorStatus.loading && (
             <span
               className="error-monitor-status"
@@ -97,10 +102,12 @@ const StatusBar = ({ children }) => {
               }}
             >
               {errorMonitorStatus.error
-                ? '• Unable to check errors'
+                ? `• ${t('status.errorUnavailable')}`
                 : errorMonitorStatus.count === 0
-                  ? '• No system errors'
-                  : `• ${errorMonitorStatus.count} system error${errorMonitorStatus.count !== 1 ? 's' : ''}`}
+                  ? `• ${t('status.noSystemErrors')}`
+                  : `• ${t(systemErrorCountKey, {
+                      count: errorMonitorStatus.count,
+                    })}`}
             </span>
           )}
           <span 
@@ -119,7 +126,7 @@ const StatusBar = ({ children }) => {
           >
             {versionInfo.displayEnvironment}
           </span>
-          <span className="info-hint">ⓘ</span>
+          <span className="info-hint" title={t('status.infoHint')}>ⓘ</span>
         </div>
       </div>
       

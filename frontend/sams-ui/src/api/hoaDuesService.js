@@ -194,7 +194,7 @@ export const updateCreditBalance = async (clientId, unitId, year, creditBalance,
  * @param {string} transactionId - The transaction ID
  * @returns {Promise<object>} The transaction details
  */
-export const getTransactionById = async (clientId, transactionId) => {
+export const getTransactionById = async (clientId, transactionId, language = 'EN') => {
   try {
     // Use the same API base URL for consistency
     const API_BASE_URL = config.api.baseUrl;
@@ -218,7 +218,8 @@ export const getTransactionById = async (clientId, transactionId) => {
     
     // IMPORTANT: We need to use the original clientId case (don't normalize to lowercase)
     // Server expects the exact case for client ID (e.g., "MTC" not "mtc")
-    const url = `${API_BASE_URL}/clients/${clientId}/transactions/${transactionId}`;
+    const normalizedLanguage = String(language).toUpperCase() === 'ES' ? 'ES' : 'EN';
+    const url = `${API_BASE_URL}/clients/${clientId}/transactions/${transactionId}?lang=${normalizedLanguage}`;
     
     console.log(`Fetching transaction with ID ${transactionId} for client ${clientId}`);
     console.log(`API URL: ${url}`);

@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Button, TextField, Typography, Paper, Alert, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { useClient } from '../context/ClientContext';
 import { config } from '../config';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
+import { getMexicoDateTime } from '../utils/timezone';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './HOADuesView.css';
 
 function WaterBillsSimple() {
   const { selectedClient } = useClient();
+  const { t, language } = useDesktopStrings();
   
   // MONTH SELECTOR STATE - FIRST PRIORITY
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(getMexicoDateTime().getMonth());
+  const [selectedYear, setSelectedYear] = useState(getMexicoDateTime().getFullYear());
   
   // Readings state
   const [readings, setReadings] = useState({});
@@ -21,8 +24,13 @@ function WaterBillsSimple() {
   const [units, setUnits] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
   
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December'];
+  const locale = language === 'ES' ? 'es-MX' : 'en-US';
+  const nowMexico = getMexicoDateTime();
+  const monthNames = Array.from({ length: 12 }, (_value, monthIndex) =>
+    new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(Date.UTC(2000, monthIndex, 1))
+  );
+  const fiscalMonthLabels = ['JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN']
+    .map((_, index) => new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(Date.UTC(2000, (index + 6) % 12, 1)).replace('.', '').toUpperCase());
   
   // Get auth token
   const getToken = async () => {
@@ -81,11 +89,18 @@ function WaterBillsSimple() {
       
       const data = await response.json();
       if (data.success) {
-        setMessage(`Saved readings taken in ${monthNames[selectedMonth]} ${selectedYear} for ${monthNames[consumptionMonth]} consumption`);
+        setMessage(
+          t('water.savedReadings', {
+            readingMonth: monthNames[selectedMonth],
+            readingYear: selectedYear,
+            consumptionMonth: monthNames[consumptionMonth],
+            consumptionYear
+          })
+        );
         setReadings({});
         loadHistory();
       } else {
-        setError(data.error || 'Failed to save');
+        setError(data.error || t('water.saveFailed'));
       }
     } catch (err) {
       setError(err.message);
@@ -95,7 +110,7 @@ function WaterBillsSimple() {
   };
   
   // Fetch units from backend
-  const fetchUnits = async () => {
+  const fetchUnits = useCallback(async () => {
     if (!selectedClient) return;
     
     try {
@@ -121,17 +136,17 @@ function WaterBillsSimple() {
     } finally {
       setLoadingUnits(false);
     }
-  };
+  }, [selectedClient]);
   
   // Load history
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!selectedClient) return;
     
     try {
       const token = await getToken();
       // Get fiscal year properly
       const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7; // AVII starts in July
-      const fiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+      const fiscalYear = getFiscalYear(getMexicoDateTime(), fiscalYearStartMonth);
       
       const response = await fetch(
         `${config.api.baseUrl}/clients/${selectedClient.id}/water/readings/${fiscalYear}`,
@@ -159,7 +174,7 @@ function WaterBillsSimple() {
     } catch (err) {
       console.error('Error loading history:', err);
     }
-  };
+  }, [selectedClient]);
   
   // Load units and history on mount
   useEffect(() => {
@@ -167,10 +182,10 @@ function WaterBillsSimple() {
       fetchUnits();
       loadHistory();
     }
-  }, [selectedClient]);
+  }, [selectedClient, fetchUnits, loadHistory]);
   
   if (!selectedClient) {
-    return <Alert severity="info">Please select a client</Alert>;
+    return <Alert severity="info">{t('water.selectClient')}</Alert>;
   }
   
   return (
@@ -181,16 +196,16 @@ function WaterBillsSimple() {
         
         {/* ENTRY SECTION */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom>Water Meter Readings</Typography>
+          <Typography variant="h5" gutterBottom>{t('water.title')}</Typography>
           
           {/* MONTH SELECTOR - FIRST UI ELEMENT! */}
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
             <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Month</InputLabel>
+              <InputLabel>{t('water.month')}</InputLabel>
               <Select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                label="Month"
+                label={t('water.month')}
               >
                 {monthNames.map((month, index) => (
                   <MenuItem key={index} value={index}>{month}</MenuItem>
@@ -199,11 +214,11 @@ function WaterBillsSimple() {
             </FormControl>
             
             <FormControl sx={{ minWidth: 120 }}>
-              <InputLabel>Year</InputLabel>
+              <InputLabel>{t('water.year')}</InputLabel>
               <Select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                label="Year"
+                label={t('water.year')}
               >
                 {[2024, 2025, 2026].map(year => (
                   <MenuItem key={year} value={year}>{year}</MenuItem>
@@ -213,14 +228,14 @@ function WaterBillsSimple() {
           </Box>
           
           {/* READING INPUTS */}
-          <Typography variant="subtitle1" gutterBottom>Enter Readings</Typography>
+          <Typography variant="subtitle1" gutterBottom>{t('water.enterReadings')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 2, mb: 3 }}>
             {units.map(unit => {
               const unitId = unit.unitId || unit.id;
               return (
                 <TextField
                   key={unitId}
-                  label={`Unit ${unitId}`}
+                  label={t('water.unitLabel', { unitId })}
                   type="number"
                   value={readings[unitId] || ''}
                   onChange={(e) => setReadings({...readings, [unitId]: parseInt(e.target.value)})}
@@ -229,7 +244,7 @@ function WaterBillsSimple() {
               );
             })}
             <TextField
-              label="Common Area"
+              label={t('water.commonArea')}
               type="number"
               value={readings.commonArea || ''}
               onChange={(e) => setReadings({...readings, commonArea: parseInt(e.target.value)})}
@@ -238,14 +253,14 @@ function WaterBillsSimple() {
           </Box>
           
           <Button variant="contained" onClick={saveReadings} disabled={loading}>
-            Save Readings
+            {t('water.saveReadings')}
           </Button>
         </Paper>
         
         {/* HISTORY TABLE */}
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
-            History - FY {historyData?.year || new Date().getFullYear()}
+            {t('water.historyTitle', { year: historyData?.year || nowMexico.getFullYear() })}
           </Typography>
           
           {historyData && !loadingUnits ? (
@@ -253,18 +268,18 @@ function WaterBillsSimple() {
               <table className="hoa-dues-table">
                 <thead>
                   <tr>
-                    <th className="month-header">Month</th>
+                    <th className="month-header">{t('water.month')}</th>
                     {units.map(unit => {
                       const unitId = unit.unitId || unit.id;
                       return <th key={unitId} className="unit-header">{unitId}</th>;
                     })}
-                    <th className="unit-header">Common</th>
+                    <th className="unit-header">{t('water.commonArea')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {['JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'].map((month, idx) => {
+                  {fiscalMonthLabels.map((month, idx) => {
                     const monthData = historyData?.months?.[idx] || {};
-                    const shortYear = String(historyData?.year || new Date().getFullYear()).slice(-2);
+                    const shortYear = String(historyData?.year || nowMexico.getFullYear()).slice(-2);
                     return (
                       <tr key={idx}>
                         <td className="month-label">{month}-{shortYear}</td>
@@ -285,7 +300,7 @@ function WaterBillsSimple() {
               </table>
             </div>
           ) : (
-            <Typography>Loading history data...</Typography>
+            <Typography>{t('water.historyLoading')}</Typography>
           )}
         </Paper>
       </div>

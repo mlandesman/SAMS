@@ -76,8 +76,10 @@ const ModernBaseList = ({
         // Search across all searchable columns
         return columns.some(column => {
           if (column.searchable === false) return false;
-          
-          const value = item[column.field];
+
+          const value = typeof column.searchValue === 'function'
+            ? column.searchValue(item)
+            : item[column.field];
           if (value == null) return false;
           
           return String(value).toLowerCase().includes(searchLower);

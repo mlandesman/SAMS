@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperclip, faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
-import { getAuthInstance } from '../firebaseClient';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { pickLocalizedDisplayText, readDisplayText } from '../utils/localizedDisplayText';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './TransactionTable.css';
 
 function formatClearedDateLabel(c) {
@@ -21,18 +23,52 @@ function formatClearedDateLabel(c) {
 }
 
 /** clearedDate set when a session is accepted (ISO period end). */
-function clearedTooltip(transaction) {
+function clearedTooltip(transaction, t) {
   const c = transaction?.clearedDate;
   if (c == null || c === '') {
-    return 'Not cleared (no bank reconciliation lock)';
+    return t('tx.table.clearedTooltip.notCleared');
   }
   const label = formatClearedDateLabel(c);
   return label
-    ? `Cleared on bank reconciliation — period end ${label}`
-    : 'Cleared on bank reconciliation';
+    ? t('tx.table.clearedTooltip.clearedOn', { date: label })
+    : t('tx.table.clearedTooltip.clearedNoDate');
 }
 
 function TransactionTable({ transactions = [], selectedId = null, onSelectTransaction, onDoubleClickTransaction, clientId }) {
+  const { isSpanish } = useDesktopLanguage();
+  const { t, language } = useDesktopStrings();
+
+  const dateLocale = language === 'ES' ? 'es-MX' : 'en-US';
+
+  const coerceDate = (dateValue) => {
+    if (!dateValue) return null;
+    const raw = dateValue.ISO_8601 || dateValue.iso || dateValue.timestampValue || dateValue.raw || dateValue;
+    if (typeof raw?.toDate === 'function') {
+      try {
+        return raw.toDate();
+      } catch {
+        return null;
+      }
+    }
+    if (raw?.seconds || raw?._seconds) {
+      const seconds = Number(raw.seconds ?? raw._seconds);
+      return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
+    }
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const formatRowDate = (tx) => {
+    if (isSpanish) {
+      const localized = readDisplayText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
+      if (localized) return localized;
+    }
+    const dateObj = coerceDate(tx.date) || coerceDate(tx.created);
+    if (dateObj) {
+      return dateObj.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    return readDisplayText(tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display);
+  };
   
   // Helper function to determine display based on amount sign
   const getAmountDisplay = (transaction) => {
@@ -190,7 +226,11 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
     }
     
     // Regular single-category transaction
-    return transaction.categoryName || transaction.category || '';
+    return pickLocalizedDisplayText(
+      transaction.categoryNameLocalized || transaction.categoryLocalized,
+      transaction.categoryName || transaction.category,
+      isSpanish
+    );
   };
 
   return (
@@ -202,17 +242,17 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
               <th
                 className="txn-cleared-column"
                 scope="col"
-                title="Cleared: included in an accepted bank reconciliation (clearedDate set)"
+                title={t('tx.table.clearedTitle')}
               >
-                Clr
+                {t('tx.table.clearedShort')}
               </th>
-              <th className="date-column">Date</th>
-              <th className="vendor-column">Vendor</th>
-              <th className="category-column">Category</th>
-              <th className="unit-column">Unit</th>
-              <th className="amount-column" style={{textAlign: 'right'}}>Amount</th>
-              <th className="account-column">Account</th>
-              <th className="notes-column">Notes</th>
+              <th className="date-column">{t('tx.table.date')}</th>
+              <th className="vendor-column">{t('tx.table.vendor')}</th>
+              <th className="category-column">{t('tx.table.category')}</th>
+              <th className="unit-column">{t('tx.table.unit')}</th>
+              <th className="amount-column" style={{textAlign: 'right'}}>{t('tx.table.amount')}</th>
+              <th className="account-column">{t('tx.table.account')}</th>
+              <th className="notes-column">{t('tx.table.notes')}</th>
             </tr>
           </thead>
           <tbody>
@@ -239,12 +279,12 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                   }
                 }}
                 style={{ cursor: 'pointer' }}
-                title="Double-click to view details"
+                title={t('tx.table.doubleClickDetails')}
               >
                 <td
                   className="txn-cleared-column"
-                  title={clearedTooltip(tx)}
-                  aria-label={tx.clearedDate ? 'Cleared' : 'Not cleared'}
+                  title={clearedTooltip(tx, t)}
+                  aria-label={tx.clearedDate ? t('tx.table.cleared') : t('tx.table.notCleared')}
                 >
                   {tx.clearedDate ? (
                     <span className="txn-cleared-mark" aria-hidden="true">
@@ -256,8 +296,8 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                     </span>
                   )}
                 </td>
-                <td className="date-column">{tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display || ''}</td>
-                <td className="vendor-column">{tx.vendorName || tx.vendor || ''}</td>
+                <td className="date-column">{formatRowDate(tx)}</td>
+                <td className="vendor-column">{pickLocalizedDisplayText(tx.vendorNameLocalized, tx.vendorName || tx.vendor, isSpanish)}</td>
                 <td className="category-column">{renderCategoryCell(tx)}</td>
                 <td className="unit-column">{tx.unitId || tx.unit || ''}</td>
                 <td className="amount-column amount-cell" style={{ 
@@ -270,15 +310,15 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                     true // Show cents (centavos)
                   )}
                 </td>
-                <td className="account-column">{tx.accountName || tx.accountType || tx.account || ''}</td>
+                <td className="account-column">{pickLocalizedDisplayText(tx.accountNameLocalized, tx.accountName || tx.accountType || tx.account, isSpanish)}</td>
                 <td className="notes-column">
                   <div className="notes-content">
-                    <span className="notes-text">{tx.notes}</span>
+                    <span className="notes-text">{pickLocalizedDisplayText(tx.notesLocalized, tx.notes, isSpanish)}</span>
                     {getDocumentCount(tx.documents) > 0 && (
                       <span 
                         className="document-indicator"
                         onClick={(e) => handleDocumentClick(tx, e)}
-                        title={`View ${getDocumentCount(tx.documents)} document${getDocumentCount(tx.documents) > 1 ? 's' : ''}`}
+                        title={t('tx.table.viewDocuments', { count: getDocumentCount(tx.documents) })}
                       >
                         <FontAwesomeIcon icon={faPaperclip} />
                         {getDocumentCount(tx.documents) > 1 && (

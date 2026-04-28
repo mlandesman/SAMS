@@ -9,32 +9,46 @@
  * Designed for mobile-first with touch-friendly interactions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
+import { pickLocalizedDisplayText } from '../../utils/localizedDisplayText';
+import { getMexicoDateTime } from '../../utils/timezone';
 import './UnitReport.css';
 
 const UnitReport = ({ unitId, onClose }) => {
   const { samsUser } = useAuth();
   const { selectedClient } = useClient();
+  const { language } = useDesktopLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const isSpanish = language === 'ES';
 
-  useEffect(() => {
-    if (selectedClient?.id && unitId) {
-      fetchUnitReport();
-    }
-  }, [selectedClient?.id, unitId]);
+  const getTransactionDateDisplay = (transaction) =>
+    pickLocalizedDisplayText(transaction?.dateDisplayLocalized, transaction?.date?.display || transaction?.date || '', isSpanish);
 
-  const fetchUnitReport = async () => {
+  const getTransactionTypeDisplay = (transaction) =>
+    pickLocalizedDisplayText(transaction?.typeLocalized, transaction?.type || 'Transaction', isSpanish);
+
+  const getTransactionDescriptionDisplay = (transaction) =>
+    pickLocalizedDisplayText(transaction?.descriptionLocalized, transaction?.description, isSpanish);
+
+  const getTransactionCategoryDisplay = (transaction) =>
+    pickLocalizedDisplayText(transaction?.categoryLocalized, transaction?.category, isSpanish);
+
+  const getTransactionVendorDisplay = (transaction) =>
+    pickLocalizedDisplayText(transaction?.vendorLocalized, transaction?.vendor, isSpanish);
+
+  const fetchUnitReport = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/clients/${selectedClient.id}/reports/unit/${unitId}`, {
+      const response = await fetch(`/clients/${selectedClient.id}/reports/unit/${unitId}?lang=${language}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +74,13 @@ const UnitReport = ({ unitId, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClient?.id, unitId, samsUser, language]);
+
+  useEffect(() => {
+    if (selectedClient?.id && unitId) {
+      fetchUnitReport();
+    }
+  }, [selectedClient?.id, unitId, fetchUnitReport]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -68,15 +88,6 @@ const UnitReport = ({ unitId, onClose }) => {
       currency: 'USD',
       minimumFractionDigits: 2,
     }).format(amount || 0);
-  };
-
-  // Date formatting no longer needed - API returns pre-formatted dates
-  // Keeping function for backward compatibility if needed
-  const formatDate = (dateValue) => {
-    // If already formatted (has display property), use it
-    if (dateValue?.display) return dateValue.display;
-    // Otherwise return as-is or empty string
-    return dateValue || '';
   };
 
   const handleTransactionClick = (transaction) => {
@@ -144,16 +155,17 @@ const UnitReport = ({ unitId, onClose }) => {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const mexicoNow = getMexicoDateTime();
+    const currentMonth = mexicoNow.getMonth();
+    const currentYear = mexicoNow.getFullYear();
     
     // Parse payment data to determine which months are paid
     const paidMonths = new Set();
     if (transactions) {
       transactions.forEach(transaction => {
         if (transaction.type === 'HOA Dues' && transaction.paymentDate) {
-          const paymentDate = new Date(transaction.paymentDate);
-          if (paymentDate.getFullYear() === currentYear) {
+          const paymentDate = getMexicoDateTime(transaction.paymentDate);
+          if (!Number.isNaN(paymentDate.getTime()) && paymentDate.getFullYear() === currentYear) {
             paidMonths.add(paymentDate.getMonth());
           }
         }
@@ -169,7 +181,7 @@ const UnitReport = ({ unitId, onClose }) => {
         status = 'past-due';
       } else if (index === currentMonth) {
         // Current month - check if due within 15 days
-        const today = new Date().getDate();
+        const today = mexicoNow.getDate();
         if (today >= 15) {
           status = 'due-soon';
         }
@@ -232,9 +244,13 @@ const UnitReport = ({ unitId, onClose }) => {
             <span className="label">Status:</span>
             <span className="value">
               {currentStatus.amountDue > 0 ? (
-                <span className="status-due">❌ Amount Due: {formatCurrency(currentStatus.amountDue)}</span>
+                <span className="status-due">
+                  ❌ Amount Due: {pickLocalizedDisplayText(currentStatus.amountDueDisplayLocalized, formatCurrency(currentStatus.amountDue), isSpanish)}
+                </span>
               ) : (
-                <span className="status-paid">✅ Paid Through {currentStatus.paidThrough || 'Current'}</span>
+                <span className="status-paid">
+                  ✅ Paid Through {pickLocalizedDisplayText(currentStatus.paidThroughLocalized, currentStatus.paidThrough || 'Current', isSpanish)}
+                </span>
               )}
             </span>
           </div>
@@ -282,7 +298,7 @@ const UnitReport = ({ unitId, onClose }) => {
                 }}
               >
                 <div className="transaction-date">
-                  {transaction.date?.display || transaction.date || ''}
+                  {getTransactionDateDisplay(transaction)}
                 </div>
                 <div className="transaction-amount">
                   {formatCurrency(transaction.amount)}
@@ -314,13 +330,13 @@ const UnitReport = ({ unitId, onClose }) => {
               <div className="detail-row">
                 <span className="detail-label">Date:</span>
                 <span className="detail-value">
-                  {selectedTransaction.date?.display || selectedTransaction.date || ''}
+                  {getTransactionDateDisplay(selectedTransaction)}
                 </span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">Type:</span>
                 <span className="detail-value">
-                  {selectedTransaction.type || 'Transaction'}
+                  {getTransactionTypeDisplay(selectedTransaction)}
                 </span>
               </div>
               <div className="detail-row">
@@ -329,27 +345,27 @@ const UnitReport = ({ unitId, onClose }) => {
                   {formatCurrency(selectedTransaction.amount)}
                 </span>
               </div>
-              {selectedTransaction.description && (
+              {getTransactionDescriptionDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Description:</span>
                   <span className="detail-value">
-                    {selectedTransaction.description}
+                    {getTransactionDescriptionDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}
-              {selectedTransaction.category && (
+              {getTransactionCategoryDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Category:</span>
                   <span className="detail-value">
-                    {selectedTransaction.category}
+                    {getTransactionCategoryDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}
-              {selectedTransaction.vendor && (
+              {getTransactionVendorDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Vendor:</span>
                   <span className="detail-value">
-                    {selectedTransaction.vendor}
+                    {getTransactionVendorDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}

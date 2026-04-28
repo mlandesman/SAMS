@@ -4,11 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { updateCreditHistoryEntry } from '../api/hoaDuesService';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import { getMexicoDateString } from '../utils/timezone';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './CreditBalanceEditEntryModal.css';
 
 function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate }) {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
+  const { t } = useDesktopStrings();
   
   const [entryDate, setEntryDate] = useState('');
   const [amount, setAmount] = useState('');
@@ -46,28 +48,28 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
 
   const handleSave = async () => {
     if (!canEdit) {
-      setError('You do not have permission to edit credit history entries');
+      setError(t('creditEntry.errorNoPermission'));
       return;
     }
 
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue)) {
-      setError('Please enter a valid amount');
+      setError(t('creditEntry.errorValidAmount'));
       return;
     }
 
     if (!notes.trim()) {
-      setError('Please provide notes explaining this entry');
+      setError(t('creditEntry.errorProvideNotes'));
       return;
     }
 
     if (!entryDate) {
-      setError('Please select a date for this entry');
+      setError(t('creditEntry.errorProvideDate'));
       return;
     }
 
     if (!source.trim()) {
-      setError('Please provide a source');
+      setError(t('creditEntry.errorProvideSource'));
       return;
     }
 
@@ -98,7 +100,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
       onClose();
     } catch (err) {
       console.error('Error updating credit history entry:', err);
-      setError(err.message || 'Failed to update credit history entry');
+      setError(err.message || t('creditEntry.errorUpdateFailed'));
     } finally {
       setLoading(false);
     }
@@ -122,16 +124,16 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
       <div className="modal-backdrop">
         <div className="credit-balance-edit-entry-modal">
           <div className="modal-header">
-            <h3>Access Denied</h3>
+            <h3>{t('creditEdit.accessDenied')}</h3>
             <button className="close-button" onClick={onClose}>×</button>
           </div>
           <div className="modal-body">
-            <p>You do not have permission to edit credit history entries.</p>
-            <p>Only administrators and super administrators can edit entries.</p>
+            <p>{t('creditEntry.errorNoPermission')}</p>
+            <p>{t('creditEntry.errorAdminOnly')}</p>
           </div>
           <div className="modal-footer">
             <button className="btn-secondary" onClick={onClose}>
-              Close
+              {t('creditHistory.close')}
             </button>
           </div>
         </div>
@@ -143,7 +145,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
     <div className="modal-backdrop">
       <div className="credit-balance-edit-entry-modal">
         <div className="modal-header">
-          <h3>Edit Credit History Entry - Unit {unitId}</h3>
+          <h3>{t('creditEntry.title', { unitId })}</h3>
           <button className="close-button" onClick={handleCancel}>×</button>
         </div>
         
@@ -155,7 +157,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
           )}
           
           <div className="form-group">
-            <label htmlFor="entryDate">Entry Date (Required):</label>
+            <label htmlFor="entryDate">{t('creditEdit.entryDateRequired')}</label>
             <input
               type="date"
               id="entryDate"
@@ -165,34 +167,34 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
               required
             />
             <div className="form-hint">
-              This date will be used to sort the history chronologically
+              {t('creditEdit.entryDateHint')}
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="amount">Amount (Required):</label>
+            <label htmlFor="amount">{t('creditEntry.amountRequired')}</label>
             <input
               type="number"
               id="amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter amount"
+              placeholder={t('creditEntry.amountPlaceholder')}
               step="0.01"
               disabled={loading}
               required
             />
             <div className="form-hint">
-              Positive values add credit, negative values remove credit
+              {t('creditEntry.amountHint')}
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="notes">Notes (Required):</label>
+            <label htmlFor="notes">{t('creditEdit.notesRequired')}</label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Please explain this credit history entry..."
+              placeholder={t('creditEntry.notesPlaceholder')}
               rows="3"
               disabled={loading}
               required
@@ -200,7 +202,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
           </div>
 
           <div className="form-group">
-            <label htmlFor="source">Source (Required):</label>
+            <label htmlFor="source">{t('creditEntry.sourceRequired')}</label>
             <select
               id="source"
               value={source}
@@ -217,7 +219,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
           </div>
 
           <div className="form-note">
-            <strong>Note:</strong> After saving, the history will be resorted chronologically and the balance will be recalculated.
+            <strong>{t('creditEdit.noteTitle')}</strong> {t('creditEntry.noteBody')}
           </div>
         </div>
 
@@ -227,14 +229,14 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
             onClick={handleCancel}
             disabled={loading}
           >
-            Cancel
+            {t('creditEdit.cancel')}
           </button>
           <button 
             className="btn-primary" 
             onClick={handleSave}
             disabled={loading || !entryDate || !amount || !notes.trim() || !source.trim()}
           >
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? t('creditEdit.saving') : t('creditEdit.saveChanges')}
           </button>
         </div>
       </div>

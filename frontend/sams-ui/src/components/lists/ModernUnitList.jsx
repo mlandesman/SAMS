@@ -2,11 +2,14 @@ import React, { useState, useCallback } from 'react';
 import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { getUnits } from '../../api/units';
 import { getOwnerNames, getManagerNames, normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils';
+import { resolveListEntityField } from '../../utils/listLocalization';
 
 const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailUnit, setDetailUnit] = useState(null);
 
@@ -40,7 +43,7 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       width: '12%',
       render: (item) => (
         <span className={`status-${(item.status || 'active').toLowerCase()}`}>
-          {item.status || 'active'}
+          {resolveListEntityField(item, 'unit', 'status', { language, localizationEnabled, hardFallback: 'active' })}
         </span>
       )
     },
@@ -50,9 +53,10 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       searchable: true, 
       width: '28%',
       render: (item) => {
-        if (!item.notes) return '';
+        const localizedNotes = resolveListEntityField(item, 'unit', 'notes', { language, localizationEnabled });
+        if (!localizedNotes) return '';
         // Truncate long notes for table display
-        return item.notes.length > 50 ? `${item.notes.substring(0, 50)}...` : item.notes;
+        return localizedNotes.length > 50 ? `${localizedNotes.substring(0, 50)}...` : localizedNotes;
       }
     },
   ];
@@ -60,8 +64,17 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
   // Define detail modal fields
   const detailFields = [
     { key: 'unitId', label: 'Unit ID' },
-    { key: 'unitName', label: 'Unit Name' },
-    { key: 'address', label: 'Address' },
+    {
+      key: 'unitName',
+      label: 'Unit Name',
+      render: (value, item) =>
+        resolveListEntityField(item, 'unit', 'unitName', { language, localizationEnabled, hardFallback: item.unitId || '' }),
+    },
+    {
+      key: 'address',
+      label: 'Address',
+      render: (value, item) => resolveListEntityField(item, 'unit', 'address', { language, localizationEnabled }),
+    },
     { 
       key: 'owners', 
       label: 'Owners',
@@ -88,8 +101,17 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
         }).join(', ');
       }
     },
-    { key: 'status', label: 'Status', type: 'status' },
-    { key: 'propertyType', label: 'Property Type' },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'status',
+      render: (value, item) => resolveListEntityField(item, 'unit', 'status', { language, localizationEnabled }),
+    },
+    {
+      key: 'propertyType',
+      label: 'Property Type',
+      render: (value, item) => resolveListEntityField(item, 'unit', 'propertyType', { language, localizationEnabled }),
+    },
     { key: 'squareFeet', label: 'Square Feet', type: 'squareFeet' },
     { 
       key: 'squareMeters', 
@@ -111,7 +133,12 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
     }},
     { key: 'duesAmount', label: 'Monthly Dues', type: 'money' },
     { key: 'accessCode', label: 'Access Code' },
-    { key: 'notes', label: 'Notes', type: 'multiline' }
+    {
+      key: 'notes',
+      label: 'Notes',
+      type: 'multiline',
+      render: (value, item) => resolveListEntityField(item, 'unit', 'notes', { language, localizationEnabled }),
+    }
   ];
   
   // API fetch function for units

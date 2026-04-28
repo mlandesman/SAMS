@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
+import { getMexicoDateTime } from '../utils/timezone';
 
 function DateTimeDisplay() {
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [currentDateTime, setCurrentDateTime] = useState(getMexicoDateTime());
+  const { language } = useDesktopLanguage();
 
   useEffect(() => {
     const timerId = setInterval(() => {
-      setCurrentDateTime(new Date());
+      setCurrentDateTime(getMexicoDateTime());
     }, 1000); // Update every second
 
     return () => {
@@ -14,8 +17,8 @@ function DateTimeDisplay() {
   }, []);
 
   const formatDate = (date) => {
-    // Example format: May 13, 2025 10:30:45 AM
-    return date.toLocaleString('en-US', {
+    const locale = language === 'ES' ? 'es-MX' : 'en-US';
+    return date.toLocaleString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

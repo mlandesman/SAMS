@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import './Sidebar.css';
 
@@ -87,6 +89,8 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   const { pathname } = useLocation();
   const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
   const { samsUser } = useAuth(); // Get user for role checking
+  const { language, setLanguage, localizationEnabled } = useDesktopLanguage();
+  const { t, menuLabel } = useDesktopStrings();
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
   const allMenuItems = useMemo(() => {
@@ -133,6 +137,13 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
     return getVisibleMenuItems(samsUser, allMenuItems, selectedClient);
   }, [samsUser, allMenuItems, selectedClient]);
 
+  const handleLanguageToggle = () => {
+    if (!localizationEnabled) {
+      return;
+    }
+    setLanguage(language === 'EN' ? 'ES' : 'EN');
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header-section">
@@ -144,13 +155,15 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
       </div>
 
       {/* Always render "Activities" heading */}
-      <h3 className="sidebar-menu-heading">Activities</h3>
+      <h3 className="sidebar-menu-heading">
+        {t('sidebar.activities')}
+      </h3>
 
       <ul className="sidebar-menu">
         {isLoadingMenu && selectedClient ? (
-          <li className="menu-loading">Loading menu...</li>
+          <li className="menu-loading">{t('sidebar.loadingMenu')}</li>
         ) : menuError ? (
-          <li className="menu-error">Error loading menu</li>
+          <li className="menu-error">{t('sidebar.errorMenu')}</li>
         ) : (
           menuItems.map((item, index) => {
             // Get the current path from window location
@@ -168,7 +181,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
                     onActivityChange(item.activity); // Call onActivityChange
                   }}
                 >
-                  {item.name}
+                  {menuLabel(item.activity, item.name)}
                 </Link>
               </li>
             );
@@ -180,14 +193,26 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
               to="/reconciliation"
               onClick={() => onActivityChange && onActivityChange('reconciliation')}
             >
-              Bank reconciliation
+              {t('sidebar.reconciliation')}
             </Link>
           </li>
         )}
         <li className="change-client-button" onClick={onChangeClientClick}>
-          Change Client
+          {t('sidebar.changeClient')}
         </li>
       </ul>
+
+      <div className="sidebar-bottom-controls">
+        <button
+          type="button"
+          className="sidebar-language-toggle"
+          onClick={handleLanguageToggle}
+          aria-label={t('sidebar.language')}
+          disabled={!localizationEnabled}
+        >
+          {t('sidebar.languageToggle')}
+        </button>
+      </div>
     </div>
   );
 }

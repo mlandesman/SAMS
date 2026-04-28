@@ -13,6 +13,7 @@ import PropaneView from '../components/propane/PropaneView';
 import { HOADuesProvider } from '../context/HOADuesContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { ListManagementProvider } from '../context/ListManagementContext';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './ActivityView.css';
 
 // Map of activity names to view components
@@ -65,12 +66,13 @@ function ActivityView() {
 // Placeholder for activities without a dedicated view
 function PlaceholderView({ title }) {
   const { activity } = useParams();
+  const { t } = useDesktopStrings();
   const displayTitle = title || activity;
   
   return (
     <div className="placeholder-view">
       <h1>{displayTitle}</h1>
-      <p>This feature is coming soon.</p>
+      <p>{t('activity.comingSoon')}</p>
     </div>
   );
 }

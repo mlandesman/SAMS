@@ -2,47 +2,49 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarAlt, faChevronDown, faFilter } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
-import { getFiscalYearLabel } from '../utils/fiscalYearUtils';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
+import { getMexicoDateTime } from '../utils/timezone';
 import './DateRangeDropdown.css';
 
 const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false, transactionCount = 0, advancedFiltersActive = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { selectedClient } = useClient();
+  const { t } = useDesktopStrings();
   
   // Check if client uses fiscal year
   const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
   const isFiscalYear = fiscalYearStartMonth !== 1;
   
   // Get current year for fiscal year labels
-  const currentDate = new Date();
+  const currentDate = getMexicoDateTime();
   const currentYear = currentDate.getFullYear();
   const currentFiscalYear = isFiscalYear ? 
     (currentDate.getMonth() + 1 >= fiscalYearStartMonth ? currentYear + 1 : currentYear) : 
     currentYear;
 
   const dateRanges = [
-    { id: 'all', label: 'All Time', value: 'all' },
+    { id: 'all', label: t('date.allTime'), value: 'all' },
     { 
       id: 'yearToDate', 
-      label: isFiscalYear ? 'Year to Date (FY)' : 'Year to Date', 
+      label: isFiscalYear ? t('date.yearToDateFiscal') : t('date.yearToDate'), 
       value: 'yearToDate',
       tooltip: isFiscalYear ? `Fiscal Year ${currentFiscalYear} to current date` : undefined
     },
     { 
       id: 'previousYear', 
-      label: isFiscalYear ? 'Previous Year (FY)' : 'Previous Year', 
+      label: isFiscalYear ? t('date.previousYearFiscal') : t('date.previousYear'), 
       value: 'previousYear',
       tooltip: isFiscalYear ? `Fiscal Year ${currentFiscalYear - 1}` : undefined
     },
-    { id: 'currentMonth', label: 'Current Month', value: 'currentMonth' },
-    { id: 'previousMonth', label: 'Previous Month', value: 'previousMonth' },
-    { id: 'previous3Months', label: 'Previous 3 Months', value: 'previous3Months' },
-    { id: 'today', label: 'Today', value: 'today' },
-    { id: 'yesterday', label: 'Yesterday', value: 'yesterday' },
-    { id: 'thisWeek', label: 'This Week', value: 'thisWeek' },
-    { id: 'lastWeek', label: 'Last Week', value: 'lastWeek' },
-    { id: 'custom', label: 'Custom Range...', value: 'custom' }
+    { id: 'currentMonth', label: t('date.currentMonth'), value: 'currentMonth' },
+    { id: 'previousMonth', label: t('date.previousMonth'), value: 'previousMonth' },
+    { id: 'previous3Months', label: t('date.previous3Months'), value: 'previous3Months' },
+    { id: 'today', label: t('date.today'), value: 'today' },
+    { id: 'yesterday', label: t('date.yesterday'), value: 'yesterday' },
+    { id: 'thisWeek', label: t('date.thisWeek'), value: 'thisWeek' },
+    { id: 'lastWeek', label: t('date.lastWeek'), value: 'lastWeek' },
+    { id: 'custom', label: t('date.customRange'), value: 'custom' }
   ];
 
   // Handle clicking outside to close
@@ -65,13 +67,13 @@ const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false,
   };
 
   const getCurrentRangeLabel = () => {
-    if (!currentRange) return 'All Time';
+    if (!currentRange) return t('date.allTime');
     const range = dateRanges.find(r => r.id === currentRange);
-    return range ? range.label : 'Custom Range';
+    return range ? range.label : t('date.customRangeLabel');
   };
 
   const formatDateRangeDisplay = () => {
-    const now = new Date();
+    const now = getMexicoDateTime();
     const rangeLabel = getCurrentRangeLabel();
     
     // If it's "All Time", just show the current date
@@ -98,12 +100,12 @@ const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false,
       <button 
         className={`date-toggle-btn ${(currentRange && currentRange !== 'all') || advancedFiltersActive ? 'filtered' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
-        title="Filter by date range"
+        title={t('date.filterByRange')}
       >
         {showLabel ? (
           <span className="filter-label-with-count">
             {advancedFiltersActive && <FontAwesomeIcon icon={faFilter} className="filter-icon" />}
-            {advancedFiltersActive ? 'Filtered' : getCurrentRangeLabel()} ({transactionCount})
+            {(advancedFiltersActive ? t('date.filtered') : getCurrentRangeLabel())} ({transactionCount})
             <FontAwesomeIcon icon={faChevronDown} className="dropdown-arrow" />
           </span>
         ) : (
@@ -115,7 +117,7 @@ const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false,
         <div className="date-dropdown-menu">
           <div className="dropdown-header">
             <FontAwesomeIcon icon={faCalendarAlt} />
-            Quick Date Filters
+            {t('date.quickFilters')}
           </div>
           {dateRanges.map((range) => (
             <button

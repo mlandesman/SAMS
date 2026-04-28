@@ -45,6 +45,7 @@ import PollCreationWizard from '../components/polls/PollCreationWizard';
 import PollDetailView from '../components/polls/PollDetailView';
 import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import '../layout/ActionBar.css';
 import '../styles/SandylandModalTheme.css';
 import './ProjectsView.css';
@@ -99,6 +100,7 @@ function ProjectsView() {
   const { selectedClient } = useClient();
   const navigate = useNavigate();
   const { setCenterContent, clearCenterContent } = useStatusBar();
+  const { t } = useDesktopStrings();
   
   // Year selector state
   const currentYear = getMexicoDate().getFullYear();
@@ -114,7 +116,7 @@ function ProjectsView() {
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [, setSearchLoading] = useState(false);
   const [searchAnchorEl, setSearchAnchorEl] = useState(null);
   
   // Flag to skip auto-select when selecting from search
@@ -130,7 +132,7 @@ function ProjectsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [, setIsSaving] = useState(false);
   
   // Bids modal state
   const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
@@ -880,27 +882,27 @@ function ProjectsView() {
       {/* ACTION BAR */}
       <ActivityActionBar>
         {/* CRUD Buttons */}
-        <button className="action-item" onClick={handleNewProject} title="Create new project">
+        <button className="action-item" onClick={handleNewProject} title={t('projects.newProject')}>
           <FontAwesomeIcon icon={faPlus} />
-          <span>New Project</span>
+          <span>{t('projects.newProject')}</span>
         </button>
         <button 
           className="action-item" 
           onClick={handleEditProject} 
           disabled={!selectedProject}
-          title={selectedProject ? "Edit project" : "Select a project to edit"}
+          title={selectedProject ? t('projects.edit') : t('projects.edit')}
         >
           <FontAwesomeIcon icon={faEdit} />
-          <span>Edit</span>
+          <span>{t('projects.edit')}</span>
         </button>
         <button 
           className="action-item" 
           onClick={handleDeleteClick} 
           disabled={!selectedProject}
-          title={selectedProject ? "Delete a project" : "Select a project to delete"}
+          title={selectedProject ? t('projects.delete') : t('projects.delete')}
         >
           <FontAwesomeIcon icon={faTrash} />
-          <span>Delete</span>
+          <span>{t('projects.delete')}</span>
         </button>
         
         {/* Year Navigation (rightmost) */}
@@ -1089,7 +1091,7 @@ function ProjectsView() {
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <FontAwesomeIcon icon={faFileAlt} style={{ color: '#666' }} />
-                  <Typography variant="h6">Project Documents</Typography>
+                  <Typography variant="h6">{t('projects.section.documents')}</Typography>
                 </Box>
                 <ProjectDocumentsList
                   linkedToType="project"
@@ -1104,7 +1106,7 @@ function ProjectsView() {
               {/* Project Financial Summary Card (approved projects only) */}
               {selectedProject.status === 'approved' && (
                 <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>Project Financial Summary</Typography>
+                  <Typography variant="h6" sx={{ mb: 2 }}>{t('projects.section.financialSummary')}</Typography>
                   <Box sx={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
@@ -1219,7 +1221,7 @@ function ProjectsView() {
               {(selectedProject.noAssessmentRequired || (selectedProject.assessmentSchedule && selectedProject.assessmentSchedule.length > 0)) && (
                 <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Typography variant="h6">Assessment Schedule</Typography>
+                    <Typography variant="h6">{t('projects.section.assessmentSchedule')}</Typography>
                     {selectedProject.status === 'approved' && (
                       <button
                         className="action-item"
@@ -1295,7 +1297,7 @@ function ProjectsView() {
               {/* Voting Status Section */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6">Voting Status</Typography>
+                  <Typography variant="h6">{t('projects.section.votingStatus')}</Typography>
                   {!linkedPoll && ['proposed', 'bidding', 'approved'].includes(selectedProject.status) && (
                     <button 
                       className="action-item" 
@@ -1370,7 +1372,7 @@ function ProjectsView() {
               {/* Vendor Payments Section */}
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
-                  Vendor Payments
+                  {t('projects.section.vendorPayments')}
                 </Typography>
                 <VendorPaymentsTable 
                   vendorPayments={selectedProject.vendorPayments || []}
@@ -1410,10 +1412,10 @@ function ProjectsView() {
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={isDeleteDialogOpen}
-        title="Delete Project"
-        message={`Are you sure you want to delete "${selectedProject?.name}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title={t('projects.deleteTitle')}
+        message={t('projects.deleteMessage', { name: selectedProject?.name || '' })}
+        confirmLabel={t('projects.deleteConfirm')}
+        cancelLabel={t('projects.cancel')}
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
         confirmButtonClass="danger"
@@ -1431,7 +1433,7 @@ function ProjectsView() {
             onClick={e => e.stopPropagation()}
           >
             <div className="sandyland-modal-header">
-              <h2 className="sandyland-modal-title">Bill Milestone: {billMilestoneDialog.milestone?.milestone ?? billMilestoneDialog.milestone?.label}</h2>
+              <h2 className="sandyland-modal-title">{t('projects.billMilestone')}: {billMilestoneDialog.milestone?.milestone ?? billMilestoneDialog.milestone?.label}</h2>
             </div>
             <div className="sandyland-modal-content">
               {billMilestoneDialog.milestone && selectedProject && (() => {
@@ -1484,14 +1486,14 @@ function ProjectsView() {
                 onClick={() => setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })}
                 disabled={billingInProgress}
               >
-                Cancel
+                {t('projects.cancel')}
               </button>
               <button
                 className="sandyland-btn sandyland-btn-primary"
                 onClick={handleBillMilestoneConfirm}
                 disabled={billingInProgress}
               >
-                {billingInProgress ? 'Billing...' : 'Confirm'}
+                {billingInProgress ? t('projects.billing') : t('projects.confirm')}
               </button>
             </div>
           </div>

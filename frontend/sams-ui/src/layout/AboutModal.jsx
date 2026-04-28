@@ -18,12 +18,14 @@ import {
   Computer as ComputerIcon,
 } from '@mui/icons-material';
 import ChangelogDisplay from '../components/ChangelogDisplay';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 // Sandyland Properties logo from Firebase Storage - using same URL as Sidebar
 // TODO: Update to use transparent logo from sams-sandyland-prod bucket once file permissions are configured
 const SANDYLAND_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
 
 const AboutModal = ({ open, onClose, versionInfo }) => {
+  const { t } = useDesktopStrings();
   const environmentColors = {
     development: '#ff9800',
     staging: '#2196f3', 
@@ -53,7 +55,7 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
         borderBottom: '1px solid #e0e0e0'
       }}>
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          About {versionInfo.shortName}
+          {t('about.title', { shortName: versionInfo.shortName })}
         </Typography>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
@@ -124,25 +126,25 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ComputerIcon color="primary" />
-                    Build Information
+                    {t('about.buildInformation')}
                   </Typography>
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Version:</strong> {versionInfo.version}
+                      <strong>{t('about.version')}:</strong> {versionInfo.version}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Build Date:</strong> {versionInfo.buildTimeFormatted}
+                      <strong>{t('about.buildDate')}:</strong> {versionInfo.buildTimeFormatted}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Environment:</strong> {versionInfo.displayEnvironment}
+                      <strong>{t('about.environment')}:</strong> {versionInfo.displayEnvironment}
                     </Typography>
                     {versionInfo.git?.hash && versionInfo.git.hash !== 'unknown' && (
                       <>
                         <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Git Commit:</strong> <code>{versionInfo.git.hash}</code>
+                          <strong>{t('about.gitCommit')}:</strong> <code>{versionInfo.git.hash}</code>
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Git Branch:</strong> {versionInfo.git.branch}
+                          <strong>{t('about.gitBranch')}:</strong> {versionInfo.git.branch}
                         </Typography>
                       </>
                     )}
@@ -156,20 +158,20 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
               <Card sx={{ height: '100%', border: '1px solid #e0e0e0' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Company Information
+                    {t('about.companyInformation')}
                   </Typography>
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Company:</strong> {versionInfo?.companyName || 'Sandyland Properties'}
+                      <strong>{t('about.company')}:</strong> {versionInfo?.companyName || 'Sandyland Properties'}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Copyright:</strong> © {versionInfo?.copyright || '2026'} {versionInfo?.companyName || 'Sandyland Properties'}
+                      <strong>{t('about.copyright')}:</strong> © {versionInfo?.copyright || '2026'} {versionInfo?.companyName || 'Sandyland Properties'}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Developers:</strong> {versionInfo?.developers && Array.isArray(versionInfo.developers) ? versionInfo.developers.join(' & ') : 'Michael Landesman'}
+                      <strong>{t('about.developers')}:</strong> {versionInfo?.developers && Array.isArray(versionInfo.developers) ? versionInfo.developers.join(' & ') : 'Michael Landesman'}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Type:</strong> Property Management System
+                      <strong>{t('about.type')}:</strong> {t('about.systemType')}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -195,7 +197,7 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
             borderRadius: 2
           }}
         >
-          Close
+          {t('about.close')}
         </Button>
       </DialogActions>
     </Dialog>

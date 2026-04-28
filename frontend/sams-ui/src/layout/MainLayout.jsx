@@ -5,10 +5,12 @@ import PWANavigation from '../components/PWANavigation';
 import './Layout.css';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 function MainLayout({ children, onChangeClientClick, showStatusBar, onActivityChange }) {
   const { selectedClient, setClient } = useClient();
   const { currentUser, logout } = useAuth();
+  const { t } = useDesktopStrings();
   
   const handleLogout = async () => {
     const success = await logout();
@@ -31,8 +33,12 @@ function MainLayout({ children, onChangeClientClick, showStatusBar, onActivityCh
       <div className="main-content">
         {currentUser && (
           <div className="user-info">
-            <span>Logged in as: {currentUser.email}</span>
-            <button onClick={handleLogout} className="logout-button">Logout</button>
+            <span>
+              {t('layout.loggedInAs')}: {currentUser.email}
+            </span>
+            <button onClick={handleLogout} className="logout-button">
+              {t('layout.logout')}
+            </button>
           </div>
         )}
         <div className="content">

@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
-import { getMexicoDateString } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { deleteCreditHistoryEntry, updateCreditHistoryEntry } from '../api/hoaDuesService';
+import { deleteCreditHistoryEntry } from '../api/hoaDuesService';
 import CreditBalanceEditModal from './CreditBalanceEditModal';
 import CreditBalanceEditEntryModal from './CreditBalanceEditEntryModal';
 import CreditBalanceConfirmModal from './CreditBalanceConfirmModal';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './CreditBalanceHistoryModal.css';
 
 function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHistory, currentBalance, year, onUpdate }) {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
+  const { t } = useDesktopStrings();
   
   const [contextMenu, setContextMenu] = useState(null);
   const [editModal, setEditModal] = useState(null);
@@ -232,13 +233,13 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
       <div className="modal-backdrop">
         <div className="credit-balance-history-modal">
           <div className="modal-header">
-            <h3>Credit Balance History - Unit {unitId}</h3>
+            <h3>{t('creditHistory.title', { unitId })}</h3>
             <button className="close-button" onClick={onClose}>×</button>
           </div>
           
           <div className="modal-body">
             <div className="current-balance-display">
-              <span className="label">Current Balance:</span>
+              <span className="label">{t('creditHistory.currentBalance')}</span>
               <span className="amount">{formatAsMXN(currentBalance || 0)}</span>
             </div>
 
@@ -252,7 +253,7 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                       setShowAddModal(true);
                     }}
                   >
-                    ➕ Add Credit
+                    ➕ {t('creditHistory.addCredit')}
                   </button>
                   <button
                     className="btn-remove-credit"
@@ -261,30 +262,30 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                       setShowAddModal(true);
                     }}
                   >
-                    ➖ Remove Credit
+                    ➖ {t('creditHistory.removeCredit')}
                   </button>
                 </div>
                 <div className="action-hint">
-                  Right-Click on row for Edit or Delete
+                  {t('creditHistory.contextHint')}
                 </div>
               </div>
             )}
 
             {sortedHistory.length === 0 ? (
               <div className="no-history">
-                <p>No credit balance history available for this unit.</p>
+                <p>{t('creditHistory.noHistory')}</p>
               </div>
             ) : (
               <div className="history-table-container">
                 <table className="history-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Running Balance</th>
-                      <th>Notes</th>
-                      <th>Source</th>
+                      <th>{t('creditHistory.date')}</th>
+                      <th>{t('creditHistory.type')}</th>
+                      <th>{t('creditHistory.amount')}</th>
+                      <th>{t('creditHistory.runningBalance')}</th>
+                      <th>{t('creditHistory.notes')}</th>
+                      <th>{t('creditHistory.source')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -312,7 +313,7 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                             {formatAsMXN(runningBalance)}
                           </td>
                           <td className="notes-cell">{entry.notes || ''}</td>
-                          <td className="source-cell">{entry.source || 'N/A'}</td>
+                          <td className="source-cell">{entry.source || t('creditHistory.na')}</td>
                         </tr>
                       );
                     })}
@@ -324,7 +325,7 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
 
           <div className="modal-footer">
             <button className="btn-secondary" onClick={onClose}>
-              Close
+              {t('creditHistory.close')}
             </button>
           </div>
         </div>
@@ -356,7 +357,7 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
           >
-            Edit Entry
+            {t('creditHistory.editEntry')}
           </div>
           <div
             onClick={handleDeleteConfirm}
@@ -369,7 +370,7 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8d7da'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
           >
-            Delete Entry
+            {t('creditHistory.deleteEntry')}
           </div>
         </div>
       )}
@@ -418,10 +419,10 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
           isOpen={!!confirmModal}
           onClose={() => setConfirmModal(null)}
           onConfirm={executeDelete}
-          title="Delete Credit History Entry"
-          message={`Are you sure you want to delete this credit history entry? This will recalculate the balance automatically.`}
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
+          title={t('creditHistory.deleteTitle')}
+          message={t('creditHistory.deleteMessage')}
+          confirmLabel={t('creditHistory.delete')}
+          cancelLabel={t('creditHistory.cancel')}
           type="danger"
         />
       )}

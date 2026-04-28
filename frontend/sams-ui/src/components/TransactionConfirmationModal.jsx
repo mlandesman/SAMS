@@ -13,16 +13,16 @@ import {
   faIdCard
 } from '@fortawesome/free-solid-svg-icons';
 import DocumentViewer from './documents/DocumentViewer';
-import { getDocument } from '../api/documents';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './TransactionConfirmationModal.css';
 
 const TransactionConfirmationModal = ({ 
   isOpen, 
   onClose, 
-  onConfirm, 
   transactionData, 
   uploadedDocuments
 }) => {
+  const { t } = useDesktopStrings();
   // Monitor expense submission success
   if (isOpen && transactionData) {
     console.log('✅ Expense transaction submitted successfully:', transactionData.amount, transactionData.category);
@@ -75,46 +75,10 @@ const TransactionConfirmationModal = ({
     if (!uploadedDocuments || uploadedDocuments.length === 0) return;
     
     // For now, always show the helpful alert since DocumentViewer integration needs work
-    alert(`Document viewing is not available yet.\n\nTo view uploaded documents:\n1. Click "Close" to close this modal\n2. Find the transaction in the table\n3. Double-click it to view documents\n\nUploaded: ${uploadedDocuments.map(d => d.name).join(', ')}`);
+    alert(`${t('txConfirm.documentViewingUnavailable')}\n\n${t('txConfirm.documentViewingSteps', {
+      docs: uploadedDocuments.map(d => d.name).join(', ')
+    })}`);
     return;
-    
-    // Check if we have real document URLs
-    const hasRealURLs = uploadedDocuments.some(doc => doc.downloadURL && doc.downloadURL !== '#');
-    
-    if (!hasRealURLs) {
-      alert(`Document viewing is not available yet.\n\nTo view uploaded documents:\n1. Click "Close" to close this modal\n2. Find the transaction in the table\n3. Double-click it to view documents\n\nUploaded: ${uploadedDocuments.map(d => d.name).join(', ')}`);
-      return;
-    }
-    
-    setDocumentViewer(prev => ({ ...prev, loading: true }));
-    
-    try {
-      // Use the real document data with actual URLs from the bidirectional linking system
-      const documents = uploadedDocuments.map((doc, index) => ({
-        id: doc.id || `doc-${index}`,
-        filename: doc.name,
-        originalName: doc.name,
-        downloadURL: doc.downloadURL, // Real URL from getTransactionDocuments
-        mimeType: doc.type
-      }));
-      
-      console.log('📄 Opening DocumentViewer with real documents:', documents);
-      
-      setDocumentViewer({
-        isOpen: true,
-        documents: documents,
-        currentDocument: documents[0] || null,
-        loading: false
-      });
-      
-      // Hide the confirmation modal temporarily while DocumentViewer is open
-      console.log('📄 Opening DocumentViewer, hiding confirmation modal temporarily');
-      setModalHidden(true);
-      
-    } catch (error) {
-      console.error('Error preparing documents for viewing:', error);
-      setDocumentViewer(prev => ({ ...prev, loading: false }));
-    }
   };
 
   const closeDocumentViewer = () => {
@@ -143,8 +107,8 @@ const TransactionConfirmationModal = ({
                 ✓
               </div>
             </div>
-            <h2>Expense Submitted!</h2>
-            <p className="success-message">Your expense has been successfully recorded.</p>
+            <h2>{t('txConfirm.expenseSubmitted')}</h2>
+            <p className="success-message">{t('txConfirm.expenseRecorded')}</p>
             <button className="close-button" onClick={onClose}>
               <FontAwesomeIcon icon={faTimes} />
             </button>
@@ -153,7 +117,7 @@ const TransactionConfirmationModal = ({
           {/* Transaction Details Card */}
           <div className="modal-content">
             <div className="transaction-details-card">
-              <h3>Transaction Details</h3>
+              <h3>{t('txConfirm.transactionDetails')}</h3>
               
               <div className="details-grid">
                 <div className="detail-item">
@@ -161,7 +125,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faDollarSign} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Amount</span>
+                    <span className="detail-label">{t('txConfirm.amount')}</span>
                     <span className="detail-value amount negative">
                       {formatAmount(transactionData.amount)}
                     </span>
@@ -173,7 +137,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faCalendarAlt} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Date</span>
+                    <span className="detail-label">{t('txConfirm.date')}</span>
                     <span className="detail-value">{formatDate(transactionData.date)}</span>
                   </div>
                 </div>
@@ -183,7 +147,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faTag} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Category</span>
+                    <span className="detail-label">{t('txConfirm.category')}</span>
                     <span className="detail-value category-badge">{transactionData.category}</span>
                   </div>
                 </div>
@@ -193,7 +157,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faBuilding} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Vendor</span>
+                    <span className="detail-label">{t('txConfirm.vendor')}</span>
                     <span className="detail-value">{transactionData.vendor}</span>
                   </div>
                 </div>
@@ -203,7 +167,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faCreditCard} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Payment Method</span>
+                    <span className="detail-label">{t('txConfirm.paymentMethod')}</span>
                     <span className="detail-value">{transactionData.paymentMethod}</span>
                   </div>
                 </div>
@@ -213,7 +177,7 @@ const TransactionConfirmationModal = ({
                     <FontAwesomeIcon icon={faUniversity} />
                   </div>
                   <div className="detail-content">
-                    <span className="detail-label">Account</span>
+                    <span className="detail-label">{t('txConfirm.account')}</span>
                     <span className="detail-value">{transactionData.account}</span>
                   </div>
                 </div>
@@ -225,7 +189,7 @@ const TransactionConfirmationModal = ({
                       <FontAwesomeIcon icon={faIdCard} />
                     </div>
                     <div className="detail-content">
-                      <span className="detail-label">Transaction ID</span>
+                      <span className="detail-label">{t('txConfirm.transactionId')}</span>
                       <span className="detail-value transaction-id">{transactionData.transactionId}</span>
                     </div>
                   </div>
@@ -239,7 +203,7 @@ const TransactionConfirmationModal = ({
                 <div className="documents-header">
                   <h3>
                     <FontAwesomeIcon icon={faFileAlt} />
-                    Documents ({uploadedDocuments.length})
+                    {t('txConfirm.documents', { count: uploadedDocuments.length })}
                   </h3>
                 </div>
                 
@@ -275,7 +239,7 @@ const TransactionConfirmationModal = ({
           {/* Action Buttons */}
           <div className="modal-footer">
             <button className="btn-primary" onClick={onClose}>
-              Close
+              {t('txConfirm.close')}
             </button>
           </div>
         </div>
