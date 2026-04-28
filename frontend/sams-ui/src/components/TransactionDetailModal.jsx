@@ -179,7 +179,7 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
 
     const locale = language === 'ES' ? 'es-MX' : 'en-US';
 
-    if (dateValue?.displayLocalized) {
+    if (isSpanish && dateValue?.displayLocalized) {
       return dateValue.displayLocalized;
     }
 

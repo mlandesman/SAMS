@@ -59,8 +59,10 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
   };
 
   const formatRowDate = (tx) => {
-    const localized = readDisplayText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
-    if (localized) return localized;
+    if (isSpanish) {
+      const localized = readDisplayText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
+      if (localized) return localized;
+    }
     const dateObj = coerceDate(tx.date) || coerceDate(tx.created);
     if (dateObj) {
       return dateObj.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
