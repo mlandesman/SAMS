@@ -19,7 +19,6 @@ import './TransactionConfirmationModal.css';
 const TransactionConfirmationModal = ({ 
   isOpen, 
   onClose, 
-  onConfirm,
   transactionData, 
   uploadedDocuments
 }) => {
@@ -110,7 +109,7 @@ const TransactionConfirmationModal = ({
             </div>
             <h2>{t('txConfirm.expenseSubmitted')}</h2>
             <p className="success-message">{t('txConfirm.expenseRecorded')}</p>
-            <button className="close-button" onClick={onConfirm || onClose}>
+            <button className="close-button" onClick={onClose}>
               <FontAwesomeIcon icon={faTimes} />
             </button>
           </div>
@@ -239,7 +238,7 @@ const TransactionConfirmationModal = ({
           
           {/* Action Buttons */}
           <div className="modal-footer">
-            <button className="btn-primary" onClick={onConfirm || onClose}>
+            <button className="btn-primary" onClick={onClose}>
               {t('txConfirm.close')}
             </button>
           </div>

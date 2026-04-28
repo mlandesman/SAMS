@@ -1202,20 +1202,6 @@ function TransactionsView() {
     // Keep expense modal open for user to edit
   };
 
-  const handleConfirmationConfirm = () => {
-    console.log('✅ User acknowledged transaction confirmation - closing modal and returning to transactions');
-    
-    // Since transaction is already saved, just close the modal and clear everything
-    setShowConfirmationModal(false);
-    
-    // Clear confirmation data
-    setConfirmationData(null);
-    setUploadedDocuments([]);
-    
-    // Close all modals and return to transaction list
-    handleAction('clear');
-  };
-
   // Success modal handlers
   const handleExpenseSuccessAddAnother = () => {
     console.log('💡 User chose "Add Another Expense"');
@@ -2103,7 +2089,6 @@ function TransactionsView() {
         <TransactionConfirmationModal
           isOpen={showConfirmationModal}
           onClose={handleConfirmationCancel}
-          onConfirm={handleConfirmationConfirm}
           transactionData={confirmationData}
           uploadedDocuments={uploadedDocuments}
         />
