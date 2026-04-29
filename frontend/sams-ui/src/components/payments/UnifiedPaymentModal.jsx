@@ -504,9 +504,17 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       // Clear selected files on success
       setSelectedFiles([]);
       
-      // Call success callback to refresh views
+      // Call success callback to refresh views and optionally trigger receipt flow
       if (onSuccess) {
-        onSuccess();
+        onSuccess({
+          result,
+          unitId: selectedUnit,
+          paymentDate,
+          paymentMethod,
+          amount: effectiveAmount,
+          reference,
+          notes
+        });
       }
       
       // Close modal

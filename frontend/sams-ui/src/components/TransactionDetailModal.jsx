@@ -248,6 +248,21 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     });
   };
 
+  const getAllocationAmountCents = (amountValue) => {
+    const rawAmount = amountValue?.integerValue ?? amountValue;
+    const parsed = Number(rawAmount || 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatAllocationAmount = (amountValue) => {
+    const amountInDollars = getAllocationAmountCents(amountValue) / 100;
+    return amountInDollars.toLocaleString(language === 'ES' ? 'es-MX' : 'en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    });
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="transaction-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -303,6 +318,30 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
               <div className="detail-row notes-row">
                 <label>{t('tx.detail.notes')}:</label>
                 <div className="notes-content">{pickLocalizedDisplayText(transaction.notesLocalized, transaction.notes, isSpanish)}</div>
+              </div>
+            )}
+
+            {Array.isArray(transaction.allocations) && transaction.allocations.length > 0 && (
+              <div className="detail-row split-allocations-row">
+                <div className="split-allocations-content">
+                  <div className="split-allocations-title">{t('tx.detail.splitAllocations')}</div>
+                  <div className="split-allocations-table">
+                    <div className="split-allocations-header">
+                      <span>{t('tx.detail.allocationCategory')}</span>
+                      <span>{t('tx.detail.allocationNotes')}</span>
+                      <span>{t('tx.detail.allocationAmount')}</span>
+                    </div>
+                    {transaction.allocations.map((allocation, index) => (
+                      <div key={allocation.id || `${allocation.categoryId || 'allocation'}-${index}`} className="split-allocation-row">
+                        <span>{allocation.categoryName || allocation.category || t('tx.detail.na')}</span>
+                        <span>{allocation.notes || '-'}</span>
+                        <span className={`split-allocation-amount ${getAllocationAmountCents(allocation.amount) < 0 ? 'negative' : 'positive'}`}>
+                          {formatAllocationAmount(allocation.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
             

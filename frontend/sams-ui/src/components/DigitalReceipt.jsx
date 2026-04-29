@@ -66,7 +66,17 @@ const DigitalReceipt = ({
 
   // Validate required fields
   const requiredFields = ['date', 'receiptNumber', 'receivedFrom', 'amount'];
-  const missingFields = requiredFields.filter(field => !transactionData[field]);
+  const missingFields = requiredFields.filter((field) => {
+    const value = transactionData[field];
+
+    if (field === 'amount') {
+      if (value === null || value === undefined || value === '') return true;
+      const numericAmount = Number(value);
+      return Number.isNaN(numericAmount) || numericAmount < 0;
+    }
+
+    return !value;
+  });
   
   console.log('🧾 [DIGITAL RECEIPT] Required fields validation:', {
     requiredFields,

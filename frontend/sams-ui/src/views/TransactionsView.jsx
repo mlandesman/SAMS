@@ -28,7 +28,7 @@ import SplitEntryModal from '../components/transactions/SplitEntryModal';
 import { LoadingSpinner } from '../components/common';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { getTransactionById } from '../api/hoaDuesService';
-import { generateTransactionReceipt } from '../utils/receiptUtils';
+import { generateReceipt, generateTransactionReceipt } from '../utils/receiptUtils';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -1230,12 +1230,47 @@ function TransactionsView() {
     setSelectedUnitForPayment(null);
   };
   
-  const handleUnifiedPaymentSuccess = () => {
+  const handleUnifiedPaymentSuccess = (paymentResponse) => {
     console.log('✅ Unified payment recorded successfully');
     // Refresh transaction list
     setIsRefreshing(true);
     // Clear any HOA/Water caches
     // TODO: Add cache clearing for HOA and Water modules
+
+    const transactionId =
+      paymentResponse?.result?.result?.transactionId ||
+      paymentResponse?.result?.transactionId ||
+      paymentResponse?.transactionId ||
+      null;
+
+    if (transactionId) {
+      handleOpenUnifiedPaymentReceipt(transactionId, paymentResponse?.unitId || null);
+    }
+  };
+
+  const handleOpenUnifiedPaymentReceipt = async (transactionId, fallbackUnitId = null) => {
+    if (!transactionId || !selectedClient?.id) {
+      return;
+    }
+
+    try {
+      // Use receiptUtils retry flow to absorb eventual consistency after UPC write.
+      const receiptGenerated = await generateReceipt(transactionId, {
+        setReceiptTransactionData,
+        setShowDigitalReceipt,
+        showError,
+        selectedClient,
+        units,
+        fallbackUnitId
+      });
+
+      if (!receiptGenerated) {
+        throw new Error('Receipt generation could not be completed');
+      }
+    } catch (error) {
+      console.error('Error preparing UPC payment receipt:', error);
+      showError('Error', t('tx.unifiedPaymentReceiptAutoOpenError'));
+    }
   };
   
   const handleReconciliationSuccess = () => {
@@ -1955,6 +1990,22 @@ function TransactionsView() {
               }
               
               // AFTER successful save, show sophisticated confirmation modal with real transaction data
+              const rawAllocations = formattedTransaction?.allocations || data.allocations || [];
+              const confirmationAllocations = Array.isArray(rawAllocations)
+                ? rawAllocations.map((allocation, index) => {
+                    const rawAmount = allocation?.amount?.integerValue ?? allocation?.amount ?? 0;
+                    const parsedAmount = typeof rawAmount === 'number'
+                      ? rawAmount
+                      : parseFloat(rawAmount);
+                    return {
+                      id: allocation?.id || `alloc-${index}`,
+                      categoryName: allocation?.categoryName || allocation?.category || t('tx.detail.na'),
+                      notes: allocation?.notes || '',
+                      amount: Number.isFinite(parsedAmount) ? centavosToPesos(parsedAmount) : 0
+                    };
+                  })
+                : [];
+
               setConfirmationData({
                 date: formattedTransaction?.date || data.date, // Use formatted date if available
                 amount: data.amount,
@@ -1967,6 +2018,7 @@ function TransactionsView() {
                 type: 'expense',
                 clientId: clientId,
                 transactionId: transactionId,
+                allocations: confirmationAllocations,
                 saved: true // Flag to show this is post-save
               });
               

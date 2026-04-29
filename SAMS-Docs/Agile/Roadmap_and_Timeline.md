@@ -6,6 +6,7 @@
 
 ## Production Status: v1.21.0
 **Deployed:** April 13, 2026 | **Prior:** v1.19.1 (Mar 20). v1.21.0 includes BANK-RECON, BUGFIX-ONBOARD sweep items, and post-deploy stabilization/hotfix follow-through merged on `main`. Apr 14 follow-up validated backup exports in production and identified final UX/timeout hardening tasks.
+**Merged After v1.21.0 (deployment pending next release tag):** Backend localization closeout (#315, PR #317) and desktop non-admin localization parity (#316, PR #320).
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)
@@ -31,6 +32,8 @@
 - ✅ Assessment vs vendor milestone separation — independent billing and payment tracking
 - ✅ Automated monthly statements — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month
 - ✅ Mobile transaction UX — fiscal-year-aware filters, text search, attachment viewing, budget expand
+- ✅ Bank Reconciliation system — ScotiaBank CSV + BBVA XLSX import, deterministic matching, reconciliation workflow, and statement acceptance (PR #268)
+- ✅ Desktop non-admin localization parity — backend companion contract carry-through to desktop shared surfaces with accepted residual tracking (#318 deferred, #319 carry-forward; PR #320)
 
 ---
 
@@ -102,17 +105,17 @@
 
 **Schedule Note (Apr 27, 2026 — Localization sprint merge closeout):** Sprint **LOCALIZATION-DESKTOP-NONADMIN** (`#316`) merged to `main` via PR #320 after quality-gate and BugBot remediation passes. Carry-forward governance remains: residual scope tracked in **#319**, `/unit-report` deferred under **#318**, and one feature-flag/category-form BugBot item accepted as non-blocking for this release. Changelog pending entry for `#316` is in `main` and ready for deployment finalization.
 
-**Schedule Note (Apr 22, 2026 — UPC-CREDIT-FIX ✅ COMPLETE):** Resolution: data-only reconciliation; no runtime code changed. Both initial diagnoses (writer-side cache corruption per Bootstrap; single-class import miss per Addendum) were proved wrong during the diagnostic loop. Final root cause: small import-era miscounts of `credit_added` ledger entries from the December 2025 Google-Sheet→Firestore migration's text-parsing scripts, sitting dormant for months until the Apr 20 unit 202 payment was the first to depend on the credit ledger to fully cover a bill. Fix: PO posted two reconciliation entries via existing Credit Balance UI (AVII 202 +$0.14, AVII 103 +$99.88, both Dev + Prod) using the Edit-modal Source dropdown to set `source` outside the SoA Account Activity whitelist. Audit script written by IA (`auditCreditLedgerVsSoA.js`) flagged 10/20 units divergent but 8 were by-design false positives (SoA visual application of credit against future-window charges); script deleted at sprint close pending #311's enhancement. Branch `fix/308-credit-ledger-soa-reconciliation` deleted (no merge to main). Issue #308 closed. Follow-up GH issues: #310 (UI dropdown enhancement), #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position.
+**Schedule Note (Apr 22, 2026 — UPC-CREDIT-FIX ✅ COMPLETE):** Resolution: data-only reconciliation; no runtime code changed. Both initial diagnoses (writer-side cache corruption per Bootstrap; single-class import miss per Addendum) were proved wrong during the diagnostic loop. Final root cause: small import-era miscounts of `credit_added` ledger entries from the December 2025 Google-Sheet→Firestore migration's text-parsing scripts, sitting dormant for months until the Apr 20 unit 202 payment was the first to depend on the credit ledger to fully cover a bill. Fix: PO posted two reconciliation entries via existing Credit Balance UI (AVII 202 +$0.14, AVII 103 +$99.88, both Dev + Prod) using the Edit-modal Source dropdown to set `source` outside the SoA Account Activity whitelist. Audit script written by IA (`auditCreditLedgerVsSoA.js`) flagged 10/20 units divergent but 8 were by-design false positives (SoA visual application of credit against future-window charges); script deleted at sprint close pending #311's enhancement. Branch `fix/308-credit-ledger-soa-reconciliation` deleted (no merge to main). Issue #308 closed. Follow-up GH issues: #310 (UI dropdown enhancement), #311 (SoA-vs-ledger dual-derivation documentation + invariant check). Historical sequence note: the later Apr 25-27 updates superseded the temporary "backup sprint active next" ordering.
 
 **Schedule Note (Apr 21, 2026 — UPC-CREDIT-FIX inserted as ACTIVE):** Production blocker `#308` discovered: when UPC uses credit balance to complete a payment, the affected billing document persists with `status: 'partial'` and a `paidAmount` short of `totalAmount`, while the SoA and UPC Preview both correctly show zero owed. Manager Bootstrap Prompt at `SAMS-Docs/Sprint_Management/Manager_Bootstraps/Manager_Bootstrap_Prompt_Sprint_UPC_CREDIT_FIX_2026-04-21.md`. PROD-BACKUP-STABILIZATION and DEBT-1 pushed back one slot. (Both Bootstrap and the subsequent Bootstrap Addendum diagnoses turned out to be wrong — see Apr 22 close-out note above for the actual root cause.)
 
 **Schedule Note (Apr 14, 2026 — BUDGET-PROJ-1 complete):** PR #304 merged to `main` and issue `#165` closed. Deliverable shipped: Budget vs Actual mode toggle (`YTD` vs `Projected FY-End`), projected variance basis alignment across preview/export, and supporting variance math tests.
 
-**Schedule Note (Apr 10, 2026 — BANK-RECON + Auth Guard Merge)**: Sprint BANK-RECON ✅ COMPLETE and merged (PR #268). Immediate follow-on fix merged (PR #270) to unify scheduler account guard behavior across auth and user-management paths. Roadmap order remains: BUGFIX-ONBOARD next, then DEBT-1 and UC-LITE.
+**Schedule Note (Apr 10, 2026 — BANK-RECON + Auth Guard Merge)**: Sprint BANK-RECON ✅ COMPLETE and merged (PR #268). Immediate follow-on fix merged (PR #270) to unify scheduler account guard behavior across auth and user-management paths. Historical sequence note: this projected ordering was later superseded by Apr 13-27 sprint outcomes.
 
 **Schedule Note (Apr 11, 2026 — BUG-SWEEP progress)**: One-at-a-time execution completed #272, #271, #275, and #260. Issue #260 (water mini-graph clipping) merged via PR #292. Next bug-sweep target: #274.
 
-**Schedule Note (Mar 29, 2026 — Roadmap Reset)**: Scrum review with Co-Product Owner reset the entire roadmap. DOC-LIB deprioritized (Google Drive works, no user demand). WhatsApp remains paused (Meta blocked). Bank Reconciliation added at position 14 (biggest daily time drain, PRD v2.0 ready). UC-LITE added at positions 15-16 (real non-HOA clients: Karyn 3 houses + 4 condos, Wilfredo/Monica 2 condos). Bug/debt interlude sprints (DEBT-1, DEBT-2) inserted between major features. Reports, Project Views, Advanced Voting, Budget Projections, Task Management sequenced by operational value. Sprint sequence: 13 BUGFIX-ONBOARD, 14 BANK-RECON, DEBT-1, 15-16 UC-LITE, DEBT-2, 17 REPORTS-V2, 18 PROJECT-VIEWS, 19 VOTING-ADV, 20 BUDGET-PROJ, 21 TASK-MGMT, 22 ADMIN-SETTINGS.
+**Schedule Note (Mar 29, 2026 — Roadmap Reset)**: Scrum review with Co-Product Owner reset the entire roadmap. DOC-LIB deprioritized (Google Drive works, no user demand). WhatsApp remains paused (Meta blocked). Bank Reconciliation added at position 14 (biggest daily time drain, PRD v2.0 ready). UC-LITE added at positions 15-16 (real non-HOA clients: Karyn 3 houses + 4 condos, Wilfredo/Monica 2 condos). Bug/debt interlude sprints (DEBT-1, DEBT-2) inserted between major features. Reports, Project Views, Advanced Voting, Budget Projections, Task Management sequenced by operational value. Historical sequence note: this was a planning baseline and is superseded by the current sprint table and Apr 2026 completion notes.
 
 **Schedule Note (Mar 29, 2026 — Sprint MOBILE-TX-UX)**: Sprint MOBILE-TX-UX ✅ COMPLETE (PR #259, 21 files, +1768/-105). Fiscal-year-aware transaction filters (vendor, category, unit, date presets), text search, attachment viewing with single-doc shortcut, budget "More" expand, double-negative fix, console cleanup. Revisions after MA review: fiscal year per-client config, year chips into filter accordion, attachment UI refinement (paperclip in detail only, single-doc direct open), aria-hidden fix (single dialog pattern). Split transaction allocation-aware category/unit matching (desktop parity). #258 closed.
 
@@ -174,6 +177,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| LOCALIZATION-DESKTOP-NONADMIN | Apr 27, 2026 | #316 complete (PR #320 merged): desktop non-admin localization parity closed with #318 deferred and #319 carry-forward governance |
 | ISSUE-315 localization closeout | Apr 25, 2026 | #315 complete (PR #317 merged): persisted `notes_es` read/write contract finalized, runtime transaction DeepL reads removed, strict backfill behavior enforced |
 | BACKEND-LOCALIZATION | Apr 24, 2026 | APM Task 2.1–2.7 complete (contract, rollout guard, endpoint parity, persisted category propagation, transactions parity + polish) |
 | BUDGET-PROJ-1 | Apr 14, 2026 | #165 complete (PR #304 merged) |
@@ -234,7 +238,7 @@
 
 ---
 
-*Last Updated: April 27, 2026 — Marked LOCALIZATION-DESKTOP-NONADMIN complete after PR #320 merge, updated current focus to UC-LITE next, and added merge closeout note including #318/#319 governance and deploy-ready changelog status.*
+*Last Updated: April 28, 2026 — Performed reality-alignment pass: added merged-after-v1.21.0 visibility for #315/#316, expanded core capabilities with BANK-RECON and desktop localization parity, added #316 completion row, and marked stale sequence notes as historical/superseded where current table now differs.*
 
 *Previous Update: April 25, 2026 — Added #315 merge closeout (PR #317) with deploy-before-backfill sequencing note, and appended Sprint Completion Log entry for persisted transaction notes localization finalization.*
 

@@ -57,7 +57,8 @@ export const generateReceipt = async (transactionId, options) => {
     setShowDigitalReceipt,
     showError,
     selectedClient,
-    units
+    units,
+    fallbackUnitId = null
   } = options;
 
   try {
@@ -108,7 +109,7 @@ export const generateReceipt = async (transactionId, options) => {
 
     // 2. Validate that transaction has a unit ID (required for receipts)
     // Check both possible property names: 'unitId' and 'unit'
-    const unitId = transaction.unitId || transaction.unit;
+    const unitId = transaction.unitId || transaction.unit || fallbackUnitId;
     if (!unitId || unitId.trim() === '') {
       throw new Error('Transaction does not have a unit ID - cannot generate receipt');
     }
@@ -217,7 +218,12 @@ export const generateReceipt = async (transactionId, options) => {
     };
 
     // 5. Validate critical receipt data
-    if (!receiptData.amount || receiptData.amount <= 0) {
+    if (
+      receiptData.amount === null ||
+      receiptData.amount === undefined ||
+      Number.isNaN(Number(receiptData.amount)) ||
+      Number(receiptData.amount) < 0
+    ) {
       throw new Error('Invalid transaction amount');
     }
 
@@ -281,7 +287,12 @@ export const validateReceiptEligibility = (transaction) => {
     return { isValid: false, reason: 'Transaction does not have a unit ID' };
   }
 
-  if (!transaction.amount || transaction.amount <= 0) {
+  if (
+    transaction.amount === null ||
+    transaction.amount === undefined ||
+    Number.isNaN(Number(transaction.amount)) ||
+    Number(transaction.amount) < 0
+  ) {
     return { isValid: false, reason: 'Invalid transaction amount' };
   }
 

@@ -38,9 +38,14 @@ self.addEventListener('fetch', (event) => {
     return; // Let the browser handle the request directly
   }
   
-  // For non-API requests (HTML, JS, CSS, images), pass directly to network
-  // NO caching, NO offline fallback, NO stale-while-revalidate
-  event.respondWith(fetch(event.request));
+  // For non-API requests (HTML, JS, CSS, images), pass directly to network.
+  // NO caching, NO offline fallback, NO stale-while-revalidate.
+  // Catch prevents uncaught promise rejection noise when navigation races dev-server reloads.
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      return Response.error();
+    })
+  );
 });
 
 // Activate event - claim clients immediately

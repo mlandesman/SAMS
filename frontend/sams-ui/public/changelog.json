@@ -10,6 +10,14 @@
             "316"
           ],
           "text": "Desktop non-admin localization parity across sidebar, read surfaces, transactions, and list CRUD with feature-flag-safe behavior"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "97",
+            "214"
+          ],
+          "text": "Improved expense confirmation and transaction detail modals with split allocation visibility, and fixed digital receipt generation for zero-amount UPC credit-only payments."
         }
       ]
     },

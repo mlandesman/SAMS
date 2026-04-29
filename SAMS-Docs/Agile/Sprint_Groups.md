@@ -1,14 +1,14 @@
 # Features and Enhancements Groupings
 *What tasks and issues go together logically or are codependent.*
 
-## Active Sprint Categories
+## Sprint Catalog (Current and Historical Status)
 
 ### ✅ Sprint LOCALIZATION-DESKTOP-NONADMIN: Desktop Non-Admin Localization Parity (Complete)
 *Carry backend localization contract (PR #314 + PR #317) into desktop non-admin experience without expanding backend scope*
 
-| # | Title | Priority | Est |
-|---|-------|----------|-----|
-| **316** | [ENHANCEMENT] Dual-language list management needs CRUD/modal updates to allow for Spanish name pairing | high | 4-8h |
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **316** | [ENHANCEMENT] Dual-language list management needs CRUD/modal updates to allow for Spanish name pairing | high | 4-8h | ✅ CLOSED (PR #320 merged to `main`) |
 
 **Theme**: Convert backend localization gains into visible desktop non-admin value (UI parity and consistency)  
 **Risk**: Medium (broad UI touchpoints; avoid runtime translation re-introduction in frontend)  
@@ -44,7 +44,7 @@
 
 **Follow-up Issues Filed**:
 - **#310** — UI: add `Reconciliation` option to the Credit Balance Source dropdown so future reconciliation entries can be posted in one step instead of add-then-edit.
-- **#311** — Tech debt: document and self-validate the SoA-vs-ledger dual-derivation contract; add a low-cost invariant check so the next silent import or migration miss surfaces early. Includes acceptance criterion that the next audit must encode the by-design pre-payment visual-application pattern as INFORMATIONAL (not DIVERGENT).
+- **#311** — Tech debt: documented and superseded during retrospective closeout; pattern-catalog guidance was added to `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md`.
 
 **Sprint Artifacts**: archived to `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_UPC_CREDIT_FIX_2026-04-22/` (Bootstrap, Addendum, Task assignment, Memory log, audit JSON+MD, unit 103 investigation report).
 
@@ -141,7 +141,7 @@
 
 ---
 
-### 🏦 Sprint BANK-RECON: Bank Reconciliation System (19-27 hours)
+### ✅ Sprint BANK-RECON: Bank Reconciliation System (Complete, 19-27 hours)
 *CSV/XLSX import, automated matching, reconciliation UI, and statement acceptance — ScotiaBank + BBVA*
 
 | Task | Title | Priority | Est |
@@ -321,14 +321,9 @@
 **Key result**: 17 files changed (+665/-331), `updateUserNameInUnits` deleted, 4 BugBot rounds, 0 regressions  
 **Risk**: HIGH (touches unit CRUD across all three codebases + requires data migration)  
 **Dependencies**: None — should be done before beta user deployment  
-**Status**: Planned — next priority after Sprint D  
+**Status**: ✅ COMPLETE (PR #240 merged March 14, 2026)
 
-**Why Now**: Unit owner/manager arrays currently store `{name, email}` copies instead of `{userId}` references. This creates two sources of truth that will diverge as users update profiles. Phone numbers are inaccessible from unit queries. The sync mechanism (`addPersonToUnit`, `syncUnitAssignments`, `updateUserNameInUnits`) uses fragile string matching. Must fix before external users are on the system.
-
-**Migration Strategy**:
-1. Write migration script: match `owners[].email` → `users` collection → write `owners[].userId`
-2. Backend API supports both formats during transition (has `userId` → resolve; has `name`/`email` → use as-is)
-3. After migration verified, remove legacy format support
+**Historical Context**: This section originally contained pre-execution rationale and migration strategy. The sprint is now complete and retained here for traceability.
 
 ---
 
@@ -554,19 +549,6 @@
 
 **Quality Rating**: ⭐⭐⭐⭐⭐  
 **Archive**: `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_B4_User_Level_UI_2026-02-24/`
-
----
-
-### 📊 Sprint Recon: Bank Reconciliation Tools ✅ COMPLETE
-*Historical balance lookup for monthly account reconciliation*
-
-| # | Title | Priority | Est |
-|---|-------|----------|-----|
-| **188** | Account balance on a given date — historical running balance view | enhancement | 4-6h |
-
-**Status**: ✅ Sprint Complete (Feb 26, 2026)  
-**PR**: #208 (merged to main)  
-**Archive**: `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_Recon_Historical_Balance_2026-02-26/`
 
 ---
 
@@ -1114,24 +1096,24 @@
 
 ## Notes
 
-1. **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250
-12. **Production v1.19.1** (Mar 20, 2026): SoA **email** preamble fix #255 — PDF/data were always correct; email body had double-counted credit; now uses closing balance only.
-13. **Sprint WA / WA-BACKEND**: ⏸️ PAUSED (Mar 20, 2026) — webhook code in main (PR #253); Meta/WhatsApp Business setup blocked externally (not a code defect); WA-FRONTEND deferred until unblock.
-14. **Issue #315 localization closeout**: ✅ COMPLETE (Apr 25, 2026) — PR #317 merged to `main`; persisted `notes_es` contract finalized across transaction read/write flows, runtime transaction DeepL reads removed, strict backfill skip-on-unresolved behavior enforced, and legacy transfer-fee note suffix generation removed from expense/reconciliation paths.
-2. **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185
-2. **Sprint CX**: ✅ COMPLETE (Feb 15) - Currency discipline: #181, #180, #179 — PR #183
-2. **Sprint F**: ✅ COMPLETE (Feb 6) - Tech debt: #124, #52, #146, #63, #155 — PRs #172-#177
-2. **Sprint Cleanup-1**: ✅ COMPLETE (Feb 5) - UI consistency + logging cleanup, 59 files changed, PR #170 merged
-2. **Sprint Polling-1**: ✅ COMPLETE (Feb 3) - Complete voting system with email link voting merged to main
-3. **Sprint CL1**: ✅ COMPLETE (Jan 28) - Issue #158 Changelog Feature merged to main
-4. **Sprint B2**: ✅ COMPLETE (Jan 28) - Issues #115, #60, #156, #108 closed and merged
-5. **Sprint W1**: ✅ COMPLETE (Jan 27) - Issue #105 Water Bills Quarterly UI closed and merged
-6. **Sprint U1**: ✅ COMPLETE (Jan 24) - Issue #153 Document Upload for UPC merged to main
-7. **Sprint A**: ✅ COMPLETE (Jan 19) - All 4 UI polish issues closed and merged
-8. **Sprint C1**: ✅ COMPLETE (Jan 22) - Issue #129 Water Consumption Report merged to main
-9. **Sprint C**: ✅ COMPLETE (Jan 20) - Issues #94 and #56 closed and merged
-10. **Sprint PM (PM1-4)**: ✅ COMPLETE (Jan 29) - Projects CRUD, Bids, Documents merged to main
-11. **Sprint B3**: ⏸️ DEPRIORITIZED (Feb 1) - Moved to Low-Priority Backlog; manual workarounds exist
+- **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250.
+- **Production v1.19.1** (Mar 20, 2026): SoA **email** preamble fix #255 — PDF/data were always correct; email body had double-counted credit; now uses closing balance only.
+- **Sprint WA / WA-BACKEND**: ⏸️ PAUSED (Mar 20, 2026) — webhook code in main (PR #253); Meta/WhatsApp Business setup blocked externally (not a code defect); WA-FRONTEND deferred until unblock.
+- **Issue #315 localization closeout**: ✅ COMPLETE (Apr 25, 2026) — PR #317 merged to `main`; persisted `notes_es` contract finalized across transaction read/write flows, runtime transaction DeepL reads removed, strict backfill skip-on-unresolved behavior enforced, and legacy transfer-fee note suffix generation removed from expense/reconciliation paths.
+- **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185.
+- **Sprint CX**: ✅ COMPLETE (Feb 15) - Currency discipline: #181, #180, #179 — PR #183.
+- **Sprint F**: ✅ COMPLETE (Feb 6) - Tech debt: #124, #52, #146, #63, #155 — PRs #172-#177.
+- **Sprint Cleanup-1**: ✅ COMPLETE (Feb 5) - UI consistency + logging cleanup, 59 files changed, PR #170 merged.
+- **Sprint Polling-1**: ✅ COMPLETE (Feb 3) - Complete voting system with email link voting merged to main.
+- **Sprint CL1**: ✅ COMPLETE (Jan 28) - Issue #158 Changelog Feature merged to main.
+- **Sprint B2**: ✅ COMPLETE (Jan 28) - Issues #115, #60, #156, #108 closed and merged.
+- **Sprint W1**: ✅ COMPLETE (Jan 27) - Issue #105 Water Bills Quarterly UI closed and merged.
+- **Sprint U1**: ✅ COMPLETE (Jan 24) - Issue #153 Document Upload for UPC merged to main.
+- **Sprint A**: ✅ COMPLETE (Jan 19) - All 4 UI polish issues closed and merged.
+- **Sprint C1**: ✅ COMPLETE (Jan 22) - Issue #129 Water Consumption Report merged to main.
+- **Sprint C**: ✅ COMPLETE (Jan 20) - Issues #94 and #56 closed and merged.
+- **Sprint PM (PM1-4)**: ✅ COMPLETE (Jan 29) - Projects CRUD, Bids, Documents merged to main.
+- **Sprint B3-Fix**: ✅ COMPLETE (Feb 21, 2026) - Production stabilization merged (PR #192). Prior "Sprint B3 deprioritized" note is superseded by this completed stabilization sprint.
 
 ---
 
@@ -1157,11 +1139,12 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 27, 2026 — Marked Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) complete after PR #320 merge to `main`; retained carry-forward/defer governance for #319 and #318; changelog pending entry is in place for upcoming deployment.  
-Previous update: April 25, 2026 — Between-sprint reset: added ACTIVE Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) as next execution sprint, moved UC-LITE sequencing to immediately follow localization parity, and kept backup/debt work queued unless risk promotes them.  
-Previous update: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.  
-Previous major update: April 22, 2026 (post-retrospective) — Closed #311 as superseded after Sprint UPC-CREDIT-FIX retrospective work created `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` (with Pattern Catalog of recurring symptom shapes) and updated `.cursor/commands/newMA.md` + `newIA.md` with prior-art search rules + mandatory architecture-doc reading. Filed new GH #312 (Nightly Data Integrity Validation + Operations Summary Email) and added new Sprint DATA-INTEGRITY-1 (Deferred) capturing the framework + UPC-vs-SoA seed check + consolidated morning ops email rollup.*  
-*Previous Update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. Resolution: data-only reconciliation, no runtime code changed. #308 closed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position; DEBT-1 next behind it.*  
-*Previous Update: April 21, 2026 — Inserted Sprint UPC-CREDIT-FIX (#308) as ACTIVE critical hotfix sprint ahead of DEBT-1 after production blocker discovered in credit-balance write-back path. PROD-BACKUP-STABILIZATION remained deferred. Scrum step-back analysis attached to Manager Bootstrap Prompt for the new sprint.*  
-*Previous Update: April 15, 2026 — Marked BUDGET-PROJ-1 complete (PR #304, issue #165 closed), preserved PROD-BACKUP-STABILIZATION as deferred, and maintained BUDGET-PROJ-2 as follow-on diagnostics scope.*  
-*Last Review: April 22, 2026 (Sprint UPC-CREDIT-FIX retrospective + DATA-INTEGRITY-1 filing)*
+*Updated: April 28, 2026 — Performed reality-alignment pass: normalized completed sprint labeling, removed duplicate historical-recon section, converted malformed Notes numbering to bullets, corrected superseded B3 status language, and aligned localization/reconciliation closeout wording to merged-to-main truth.*  
+*Previous update: April 27, 2026 — Marked Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) complete after PR #320 merge to `main`; retained carry-forward/defer governance for #319 and #318; changelog pending entry is in place for upcoming deployment.*  
+*Previous update: April 25, 2026 — Between-sprint reset: added ACTIVE Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) as next execution sprint, moved UC-LITE sequencing to immediately follow localization parity, and kept backup/debt work queued unless risk promotes them.*  
+*Previous update: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.*  
+*Previous major update: April 22, 2026 (post-retrospective) — Closed #311 as superseded after Sprint UPC-CREDIT-FIX retrospective work created `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` (with Pattern Catalog of recurring symptom shapes) and updated `.cursor/commands/newMA.md` + `newIA.md` with prior-art search rules + mandatory architecture-doc reading. Filed new GH #312 (Nightly Data Integrity Validation + Operations Summary Email) and added new Sprint DATA-INTEGRITY-1 (Deferred) capturing the framework + UPC-vs-SoA seed check + consolidated morning ops email rollup.*  
+*Previous update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. Resolution: data-only reconciliation, no runtime code changed. #308 closed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position; DEBT-1 next behind it.*  
+*Previous update: April 21, 2026 — Inserted Sprint UPC-CREDIT-FIX (#308) as ACTIVE critical hotfix sprint ahead of DEBT-1 after production blocker discovered in credit-balance write-back path. PROD-BACKUP-STABILIZATION remained deferred. Scrum step-back analysis attached to Manager Bootstrap Prompt for the new sprint.*  
+*Previous update: April 15, 2026 — Marked BUDGET-PROJ-1 complete (PR #304, issue #165 closed), preserved PROD-BACKUP-STABILIZATION as deferred, and maintained BUDGET-PROJ-2 as follow-on diagnostics scope.*  
+*Last Review: April 28, 2026 (Agile docs reality-alignment pass)*
