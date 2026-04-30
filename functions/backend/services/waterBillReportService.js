@@ -17,6 +17,7 @@ import { getNow } from '../../shared/services/DateService.js';
 import { resolveOwners, resolveManagers, getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { getFiscalYear, fiscalToCalendarMonth } from '../utils/fiscalYearUtils.js';
 import { DateTime } from 'luxon';
+import { generateUPCData } from './generateUPCData.js';
 
 /**
  * Generate Water Consumption Report data for a single unit
@@ -70,6 +71,7 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
   });
   
   const fiscalYearsArray = Array.from(fiscalYearsSet).sort((a, b) => a - b);
+  const currentAmountDue = await getCurrentAmountDueFromUPC(clientId, unitId, currentDate);
   
   // If no data found, return empty structure
   if (fiscalYearsArray.length === 0) {
@@ -85,6 +87,7 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
         ytdCharges: 0.00,
         ytdPayments: 0.00,
         currentBalance: 0.00,
+        currentAmountDue,
         monthlyAverage: 0.0,
         dailyAverage: 0.0,
         monthsWithData: 0,
@@ -274,7 +277,10 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
     unitId,
     unit: unitInfo,
     client: clientConfig,
-    summary,
+    summary: {
+      ...summary,
+      currentAmountDue
+    },
     comparison,
     chartData,
     fiscalYears: fiscalYearsData,
@@ -285,6 +291,32 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
       balance: grandTotalCharge - grandTotalPaid
     }
   };
+}
+
+/**
+ * Get current amount due using UPC bill-state projection.
+ * This mirrors the amount shown in Unified Payment preview ("Total Amount Due").
+ *
+ * @param {string} clientId
+ * @param {string} unitId
+ * @param {Date} asOfDate
+ * @returns {Promise<number>} Amount in pesos
+ */
+async function getCurrentAmountDueFromUPC(clientId, unitId, asOfDate) {
+  try {
+    const upcData = await generateUPCData({
+      clientId,
+      unitId,
+      asOfDate
+    });
+
+    return Number.isFinite(upcData?.totalRemaining)
+      ? Math.round(upcData.totalRemaining * 100) / 100
+      : 0;
+  } catch (error) {
+    console.error(`Error fetching UPC current amount due for ${clientId}/${unitId}:`, error);
+    return 0;
+  }
 }
 
 /**

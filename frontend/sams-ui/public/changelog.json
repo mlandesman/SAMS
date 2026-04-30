@@ -18,6 +18,13 @@
             "214"
           ],
           "text": "Improved expense confirmation and transaction detail modals with split allocation visibility, and fixed digital receipt generation for zero-amount UPC credit-only payments."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "321"
+          ],
+          "text": "Water Consumption report now highlights the UPC-aligned current amount due for each unit, with bilingual labels and consistent HTML/PDF output."
         }
       ]
     },

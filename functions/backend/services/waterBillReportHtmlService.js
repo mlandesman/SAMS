@@ -206,6 +206,10 @@ function buildSummaryBox(data, t) {
   return `
     <div class="summary-box">
       <div class="summary-title">${t.atAGlance}</div>
+      <div class="amount-due-banner">
+        <span class="amount-due-label">${t.currentAmountDue}</span>
+        <span class="amount-due-value">${formatCurrency((summary.currentAmountDue || 0) * 100)}</span>
+      </div>
       <div class="metrics-grid-balanced">
         <div class="metric">
           <div class="metric-label">${t.ytdUsage}</div>
@@ -594,6 +598,7 @@ function getTranslations(language) {
       
       // Summary box
       atAGlance: 'AT A GLANCE',
+      currentAmountDue: 'Current Amount Due (UPC)',
       ytdUsage: 'YTD Usage',
       currentRate: 'Current Rate',
       ytdCharges: 'YTD Charges',
@@ -668,6 +673,7 @@ function getTranslations(language) {
       
       // Summary box
       atAGlance: 'DE UN VISTAZO',
+      currentAmountDue: 'Monto Actual Pendiente (UPC)',
       ytdUsage: 'Consumo del Año',
       currentRate: 'Tarifa Actual',
       ytdCharges: 'Cargos del Año',
@@ -826,6 +832,32 @@ body {
   color: #1a365d;
   text-align: center;
   margin-bottom: 15px;
+}
+
+.amount-due-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff5f5;
+  border: 2px solid #e53e3e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 auto 14px auto;
+  max-width: 600px;
+}
+
+.amount-due-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #742a2a;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.amount-due-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #c53030;
 }
 
 .metrics-grid-balanced {
