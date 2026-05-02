@@ -16,7 +16,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = resolve(__dirname, '../..');
-const SERVICE_ACCOUNT_PATH = join(PROJECT_ROOT, 'functions/serviceAccountKey-dev.json');
+const DEV_SERVICE_ACCOUNT_PATH = join(PROJECT_ROOT, 'functions/serviceAccountKey-dev.json');
+const PROD_SERVICE_ACCOUNT_PATH = join(PROJECT_ROOT, 'functions/serviceAccountKey-prod.json');
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -49,24 +50,35 @@ function writeJsonFile(pathValue, payload) {
   return fullPath;
 }
 
-async function getDb() {
-  if (!existsSync(SERVICE_ACCOUNT_PATH)) {
-    throw new Error(`Missing service account file: ${SERVICE_ACCOUNT_PATH}`);
-  }
-
-  if (!admin.apps.length) {
-    const serviceAccount = JSON.parse(readFileSync(SERVICE_ACCOUNT_PATH, 'utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id,
-    });
-  }
-
-  return admin.firestore();
+function getServiceAccountPath(envName) {
+  if (envName === 'prod') return PROD_SERVICE_ACCOUNT_PATH;
+  return DEV_SERVICE_ACCOUNT_PATH;
 }
 
-async function exportEmailToUid(outPath) {
-  const db = await getDb();
+async function getDb(envName = 'dev') {
+  const serviceAccountPath = getServiceAccountPath(envName);
+  if (!existsSync(serviceAccountPath)) {
+    throw new Error(`Missing service account file: ${serviceAccountPath}`);
+  }
+
+  const appName = `remap-${envName}`;
+  let app = admin.apps.find((existingApp) => existingApp.name === appName);
+  if (!app) {
+    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+    app = admin.initializeApp(
+      {
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id,
+      },
+      appName
+    );
+  }
+
+  return app.firestore();
+}
+
+async function exportEmailToUid(outPath, envName = 'dev') {
+  const db = await getDb(envName);
   const usersSnap = await db.collection('users').get();
 
   const emailToUid = {};
@@ -91,6 +103,7 @@ async function exportEmailToUid(outPath) {
   const payload = {
     generatedAt: new Date().toISOString(),
     source: 'users',
+    environment: envName,
     mode: 'emailToUid',
     uniqueEmails: Object.keys(emailToUid).length,
     duplicateEmailCount: Object.keys(duplicateEmails).length,
@@ -107,8 +120,8 @@ async function exportEmailToUid(outPath) {
   console.log(`   Users without email: ${payload.skippedUsersWithoutEmail}`);
 }
 
-async function exportUidToEmail(outPath) {
-  const db = await getDb();
+async function exportUidToEmail(outPath, envName = 'dev') {
+  const db = await getDb(envName);
   const usersSnap = await db.collection('users').get();
 
   const uidToEmail = {};
@@ -125,6 +138,7 @@ async function exportUidToEmail(outPath) {
   const payload = {
     generatedAt: new Date().toISOString(),
     source: 'users',
+    environment: envName,
     mode: 'uidToEmail',
     usersCount: usersSnap.size,
     usersWithoutEmail,
@@ -409,21 +423,31 @@ async function main() {
 
   if (command === 'export-email-to-uid') {
     const out = getArg('--out');
+    const envName = getArg('--env', 'dev');
     if (!out) {
       console.error('Missing required argument: --out=/path/to/file.json');
       process.exit(1);
     }
-    await exportEmailToUid(out);
+    if (!['dev', 'prod'].includes(envName)) {
+      console.error("Invalid --env value. Use --env=dev or --env=prod.");
+      process.exit(1);
+    }
+    await exportEmailToUid(out, envName);
     return;
   }
 
   if (command === 'export-uid-to-email') {
     const out = getArg('--out');
+    const envName = getArg('--env', 'dev');
     if (!out) {
       console.error('Missing required argument: --out=/path/to/file.json');
       process.exit(1);
     }
-    await exportUidToEmail(out);
+    if (!['dev', 'prod'].includes(envName)) {
+      console.error("Invalid --env value. Use --env=dev or --env=prod.");
+      process.exit(1);
+    }
+    await exportUidToEmail(out, envName);
     return;
   }
 

@@ -36,11 +36,16 @@ echo ""
 REMAP_STATE_DIR="$(mktemp -d)"
 DEV_EMAIL_MAP_FILE="$REMAP_STATE_DIR/dev-email-to-uid.json"
 PROD_UID_MAP_FILE="$REMAP_STATE_DIR/prod-uid-to-email.json"
+PERSISTED_REMAP_DIR="$SCRIPT_DIR/restore-map-artifacts"
+RUN_ID="$(date +%Y%m%d_%H%M%S)"
+DEV_EMAIL_MAP_ARTIFACT="$PERSISTED_REMAP_DIR/${RUN_ID}_dev-email-to-uid.json"
+PROD_UID_MAP_ARTIFACT="$PERSISTED_REMAP_DIR/${RUN_ID}_prod-uid-to-email.json"
 
 cleanup_remap_state() {
     rm -rf "$REMAP_STATE_DIR"
 }
 trap cleanup_remap_state EXIT
+mkdir -p "$PERSISTED_REMAP_DIR"
 
 # Step 1: List available backups
 echo "📋 Step 1: Finding available backups..."
@@ -161,7 +166,9 @@ echo ""
 
 echo "🗺️  Step 3b: Capturing pre-flight Dev email→UID map..."
 node "$SCRIPT_DIR/remap-dev-user-links.js" export-email-to-uid --out="$DEV_EMAIL_MAP_FILE"
+cp "$DEV_EMAIL_MAP_FILE" "$DEV_EMAIL_MAP_ARTIFACT"
 echo "   ✅ Pre-flight map captured: $DEV_EMAIL_MAP_FILE"
+echo "   ✅ Pre-flight map artifact saved: $DEV_EMAIL_MAP_ARTIFACT"
 echo ""
 
 # Step 5: Purge Dev client data and auditLogs before import
@@ -269,7 +276,9 @@ fi
 echo ""
 echo "🗺️  Step 8: Capturing imported Prod UID→email map..."
 node "$SCRIPT_DIR/remap-dev-user-links.js" export-uid-to-email --out="$PROD_UID_MAP_FILE"
+cp "$PROD_UID_MAP_FILE" "$PROD_UID_MAP_ARTIFACT"
 echo "   ✅ Prod map captured: $PROD_UID_MAP_FILE"
+echo "   ✅ Prod map artifact saved: $PROD_UID_MAP_ARTIFACT"
 echo ""
 
 # Step 9: Replace imported Prod users with saved Dev users
