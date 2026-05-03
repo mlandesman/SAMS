@@ -84,6 +84,14 @@ const PropaneHistoryTable = ({ clientId, year, onYearChange, hideYearNavigation 
     loadData();
   }, [clientId, selectedYear]);
 
+  // Keep internal year state aligned with parent-controlled year changes
+  // (e.g., ActionBar navigation in PropaneView).
+  useEffect(() => {
+    if (typeof year === 'number' && year !== selectedYear) {
+      setSelectedYear(year);
+    }
+  }, [year, selectedYear]);
+
   const loadData = async () => {
     try {
       setLoading(true);
