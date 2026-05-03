@@ -90,7 +90,7 @@ const PropaneHistoryTable = ({ clientId, year, onYearChange, hideYearNavigation 
     if (typeof year === 'number' && year !== selectedYear) {
       setSelectedYear(year);
     }
-  }, [year, selectedYear]);
+  }, [year]);
 
   const loadData = async () => {
     try {
