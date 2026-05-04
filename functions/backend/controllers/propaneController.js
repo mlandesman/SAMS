@@ -1,6 +1,7 @@
 // Propane Controller - Data collection endpoints
 import propaneReadingsService from '../services/propaneReadingsService.js';
 import { getDb } from '../firebase.js';
+import { generatePropaneTrendSvg } from '../services/propaneGraphSvgService.js';
 
 /**
  * Get propane configuration for a client
@@ -134,6 +135,67 @@ export const getAggregatedData = async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+};
+
+/**
+ * Get rolling propane trend data for a unit (standalone prototype endpoint).
+ */
+export const getSixMonthGraphData = async (req, res) => {
+  try {
+    const { clientId, unitId } = req.params;
+    const months = Number.parseInt(req.query.months, 10);
+    const asOfYear = Number.parseInt(req.query.asOfYear, 10);
+    const asOfMonth = Number.parseInt(req.query.asOfMonth, 10);
+
+    const levels = await propaneReadingsService.getRecentUnitLevels(clientId, unitId, {
+      months: Number.isFinite(months) ? months : 6,
+      asOfYear: Number.isFinite(asOfYear) ? asOfYear : undefined,
+      asOfMonth: Number.isFinite(asOfMonth) ? asOfMonth : undefined,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        clientId,
+        unitId,
+        levels,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching propane graph data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get rolling propane trend graph SVG for a unit (standalone prototype endpoint).
+ */
+export const getSixMonthGraphSvg = async (req, res) => {
+  try {
+    const { clientId, unitId } = req.params;
+    const months = Number.parseInt(req.query.months, 10);
+    const asOfYear = Number.parseInt(req.query.asOfYear, 10);
+    const asOfMonth = Number.parseInt(req.query.asOfMonth, 10);
+
+    const levels = await propaneReadingsService.getRecentUnitLevels(clientId, unitId, {
+      months: Number.isFinite(months) ? months : 6,
+      asOfYear: Number.isFinite(asOfYear) ? asOfYear : undefined,
+      asOfMonth: Number.isFinite(asOfMonth) ? asOfMonth : undefined,
+    });
+
+    const svg = generatePropaneTrendSvg(levels);
+    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    res.send(svg);
+  } catch (error) {
+    console.error('Error fetching propane graph svg:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };

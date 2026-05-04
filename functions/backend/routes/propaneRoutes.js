@@ -7,7 +7,9 @@ import {
   saveReadings,
   getReadings,
   getReadingsExistence,
-  getAggregatedData
+  getAggregatedData,
+  getSixMonthGraphData,
+  getSixMonthGraphSvg,
 } from '../controllers/propaneController.js';
 
 const router = express.Router();
@@ -22,6 +24,10 @@ router.get('/clients/:clientId/config', enforceClientAccess, getConfig);
 // ============= DATA AGGREGATION =============
 // GET /propane/clients/:clientId/data/:year - Get aggregated year data
 router.get('/clients/:clientId/data/:year', enforceClientAccess, getAggregatedData);
+// GET /propane/clients/:clientId/graph/:unitId/data - Get rolling trend points (prototype)
+router.get('/clients/:clientId/graph/:unitId/data', enforceClientAccess, getSixMonthGraphData);
+// GET /propane/clients/:clientId/graph/:unitId/svg - Get rolling trend SVG (prototype)
+router.get('/clients/:clientId/graph/:unitId/svg', enforceClientAccess, getSixMonthGraphSvg);
 
 // ============= READINGS =============
 // GET /propane/clients/:clientId/readings/exists/:year - Batch check which months have readings

@@ -65,6 +65,62 @@ class PropaneAPI {
     
     return handleApiResponse(response);
   }
+
+  /**
+   * Get rolling graph point data for a specific unit (prototype).
+   */
+  async getSixMonthGraphData(clientId, unitId, options = {}) {
+    const token = await this.getAuthToken();
+    const params = new URLSearchParams();
+
+    if (options.months) params.set('months', String(options.months));
+    if (Number.isFinite(options.asOfYear)) params.set('asOfYear', String(options.asOfYear));
+    if (Number.isFinite(options.asOfMonth)) params.set('asOfMonth', String(options.asOfMonth));
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(
+      `${this.baseUrl}/propane/clients/${clientId}/graph/${encodeURIComponent(unitId)}/data${query}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return handleApiResponse(response);
+  }
+
+  /**
+   * Get rolling graph SVG for a specific unit (prototype).
+   */
+  async getSixMonthGraphSvg(clientId, unitId, options = {}) {
+    const token = await this.getAuthToken();
+    const params = new URLSearchParams();
+
+    if (options.months) params.set('months', String(options.months));
+    if (Number.isFinite(options.asOfYear)) params.set('asOfYear', String(options.asOfYear));
+    if (Number.isFinite(options.asOfMonth)) params.set('asOfMonth', String(options.asOfMonth));
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(
+      `${this.baseUrl}/propane/clients/${clientId}/graph/${encodeURIComponent(unitId)}/svg${query}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Graph SVG request failed (${response.status})`);
+    }
+
+    return response.text();
+  }
 }
 
 export default new PropaneAPI();
