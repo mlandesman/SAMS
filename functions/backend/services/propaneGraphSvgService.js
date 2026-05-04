@@ -17,9 +17,11 @@ function clampPercentage(value) {
   return Math.max(0, Math.min(100, value));
 }
 
-function getThresholdStroke(level) {
-  if (level <= 10) return '#dc2626'; // Critical red
-  if (level <= 30) return '#d97706'; // Low yellow/amber
+function getThresholdStroke(level, thresholds = {}) {
+  const critical = Number.isFinite(thresholds.critical) ? thresholds.critical : 10;
+  const low = Number.isFinite(thresholds.low) ? thresholds.low : 30;
+  if (level <= critical) return '#dc2626'; // Critical red
+  if (level <= low) return '#d97706'; // Low yellow/amber
   return '#059669'; // OK green
 }
 
@@ -40,6 +42,7 @@ function toPoint(levelData, index, chart) {
 export function generatePropaneTrendSvg(levels = [], language = 'english', options = {}) {
   const includeHeader = options.includeHeader !== false;
   const includeFrame = options.includeFrame === true;
+  const thresholds = options.thresholds || {};
   const width = 390;
   const height = 195;
   const chartX = 44;
@@ -81,13 +84,13 @@ export function generatePropaneTrendSvg(levels = [], language = 'english', optio
   for (let i = 0; i < points.length - 1; i += 1) {
     const start = points[i];
     const end = points[i + 1];
-    const segmentColor = getThresholdStroke(end.level);
+    const segmentColor = getThresholdStroke(end.level, thresholds);
     segmentLines.push(`
   <line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${segmentColor}" stroke-width="2.5" stroke-linecap="round" />`);
   }
 
   const markers = points.map((point) => `
-  <circle cx="${point.x}" cy="${point.y}" r="3.5" fill="${getThresholdStroke(point.level)}" stroke="#ffffff" stroke-width="1.25" />
+  <circle cx="${point.x}" cy="${point.y}" r="3.5" fill="${getThresholdStroke(point.level, thresholds)}" stroke="#ffffff" stroke-width="1.25" />
 `).join('');
 
   const monthLabels = points.map((point, index) => {
