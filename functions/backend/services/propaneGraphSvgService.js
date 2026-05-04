@@ -101,6 +101,9 @@ export function generatePropaneTrendSvg(levels = [], language = 'english', optio
 
   const firstPoint = points[0];
   const lastPoint = points[points.length - 1];
+  const lastPointLabel = points.length > 1
+    ? `<text x="${lastPoint.x}" y="${lastPoint.y - 8}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9.5" fill="#374151">${lastPoint.level}%</text>`
+    : '';
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -126,7 +129,7 @@ export function generatePropaneTrendSvg(levels = [], language = 'english', optio
   ${markers}
   ${monthLabels}
   <text x="${firstPoint.x}" y="${firstPoint.y - 8}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9.5" fill="#374151">${firstPoint.level}%</text>
-  <text x="${lastPoint.x}" y="${lastPoint.y - 8}" text-anchor="middle" font-family="Arial, sans-serif" font-size="9.5" fill="#374151">${lastPoint.level}%</text>
+  ${lastPointLabel}
 </svg>`.trim();
 }
 
