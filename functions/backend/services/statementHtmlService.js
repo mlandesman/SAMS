@@ -16,6 +16,7 @@ import { getNow } from '../../shared/services/DateService.js';
 import { joinOwnerNames } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { generatePropaneTrendSvg } from './propaneGraphSvgService.js';
 
 /**
  * Format currency (pesos)
@@ -1872,12 +1873,14 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
       ${data.utilityGraph ? `
       <div class="mini-graph-container">
         ${outputFormat === 'email'
-          ? (data.utilityGraph.type === 'propane-gauge' 
-              ? generatePropaneTableHtml(data.utilityGraph.level, data.utilityGraph.thresholds, language)
-              : generateWaterTableHtml(data.utilityGraph.periods, language))
-          : (data.utilityGraph.type === 'propane-gauge' 
-              ? generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)
-              : generateWaterBarsSvg(data.utilityGraph.periods, language))
+          ? (data.utilityGraph.type === 'water-bars'
+              ? generateWaterTableHtml(data.utilityGraph.periods, language)
+              : generatePropaneTableHtml(data.utilityGraph.latestLevel ?? data.utilityGraph.level ?? 0, data.utilityGraph.thresholds, language))
+          : (data.utilityGraph.type === 'water-bars'
+              ? generateWaterBarsSvg(data.utilityGraph.periods, language)
+              : (data.utilityGraph.type === 'propane-trend'
+                  ? generatePropaneTrendSvg(data.utilityGraph.periods || [])
+                  : generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)))
         }
       </div>
       ` : ''}

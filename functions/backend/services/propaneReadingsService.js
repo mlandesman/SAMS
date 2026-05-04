@@ -205,6 +205,63 @@ class PropaneReadingsService {
       summary
     };
   }
+
+  _extractLevelFromReading(rawReading) {
+    if (typeof rawReading === 'number') return rawReading;
+    if (rawReading && typeof rawReading === 'object' && typeof rawReading.level === 'number') {
+      return rawReading.level;
+    }
+    return null;
+  }
+
+  /**
+   * Get rolling recent readings for a single unit across year boundaries.
+   * @param {string} clientId
+   * @param {string} unitId
+   * @param {{months?: number, asOfYear?: number, asOfMonth?: number}} options
+   * @returns {Promise<Array<{year:number, month:number, level:number}>>}
+   */
+  async getRecentUnitLevels(clientId, unitId, options = {}) {
+    await this._initializeDb();
+
+    const months = Number.isFinite(options.months) && options.months > 0 ? options.months : 6;
+    const asOfYear = Number.isFinite(options.asOfYear) ? options.asOfYear : null;
+    const asOfMonth = Number.isFinite(options.asOfMonth) ? options.asOfMonth : null;
+
+    const readingsSnap = await this.db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('propaneTanks')
+      .collection('readings')
+      .get();
+
+    const rows = readingsSnap.docs
+      .map((doc) => doc.data() || {})
+      .filter((row) => Number.isFinite(row.year) && Number.isFinite(row.month))
+      .map((row) => ({
+        year: row.year,
+        month: row.month,
+        level: this._extractLevelFromReading((row.readings || {})[unitId]),
+      }))
+      .filter((row) => Number.isFinite(row.level));
+
+    const filteredByAsOf = rows.filter((row) => {
+      if (!Number.isFinite(asOfYear) || !Number.isFinite(asOfMonth)) return true;
+      if (row.year < asOfYear) return true;
+      if (row.year > asOfYear) return false;
+      return row.month <= asOfMonth;
+    });
+
+    const sorted = filteredByAsOf.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+
+    return sorted.slice(-months).map((row) => ({
+      year: row.year,
+      month: row.month,
+      level: Math.max(0, Math.min(100, row.level)),
+    }));
+  }
 }
 
 export default new PropaneReadingsService();
