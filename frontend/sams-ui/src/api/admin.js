@@ -195,97 +195,70 @@ export async function getBulkEmailProgress(clientId) {
  * @returns {Promise<Object>} Response with email results
  */
 export async function bulkSendStatementEmails(clientId, fiscalYear = null, onProgress = null, prependEn = null, prependEs = null) {
-  let pollingInterval = null;
-  
   try {
     console.log(`📧 Bulk sending statement emails for client: ${clientId}`);
-    
+
     const headers = await getAuthHeaders();
-    
     const body = { clientId };
-    
-    if (fiscalYear !== null) {
-      body.fiscalYear = fiscalYear;
-    }
-    
-    // Add prepend text if provided (translation done at authoring time)
-    if (prependEn) {
-      body.prependEn = prependEn;
-    }
-    if (prependEs) {
-      body.prependEs = prependEs;
-    }
-    
-    // Start polling for progress updates
-    if (onProgress) {
-      pollingInterval = setInterval(async () => {
-        try {
-          const progress = await getBulkEmailProgress(clientId);
-          if (progress) {
-            onProgress({
-              current: progress.current,
-              total: progress.total,
-              sent: progress.sent,
-              skipped: progress.skipped,
-              failed: progress.failed,
-              message: progress.message,
-              status: progress.status
-            });
-          }
-        } catch (pollError) {
-          console.warn('Email progress polling error:', pollError);
-        }
-      }, 1000); // Poll every second
-    }
-    
-    // Make the email request
+    if (fiscalYear !== null) body.fiscalYear = fiscalYear;
+    if (prependEn) body.prependEn = prependEn;
+    if (prependEs) body.prependEs = prependEs;
+
+    // Start async bulk email job (server returns quickly with 202 Accepted).
     const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/email`, {
       method: 'POST',
       headers,
       credentials: 'include',
       body: JSON.stringify(body)
     });
-    
-    // Stop polling
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      pollingInterval = null;
-    }
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log(`✅ Bulk email complete: ${result.data.sent} sent, ${result.data.skipped} skipped, ${result.data.failed} failed`);
-      
-      // Send final progress update
+
+    // Poll until the job reaches a terminal state.
+    const maxAttempts = 60 * 60; // 60 minutes at 1s interval
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // eslint-disable-next-line no-await-in-loop
+      const progress = await getBulkEmailProgress(clientId);
+      if (!progress) continue;
+
       if (onProgress) {
         onProgress({
-          current: result.data.totalUnits,
-          total: result.data.totalUnits,
-          sent: result.data.sent,
-          skipped: result.data.skipped,
-          failed: result.data.failed,
-          message: `Complete: ${result.data.sent} sent, ${result.data.skipped} skipped, ${result.data.failed} failed`,
-          status: 'complete'
+          current: progress.current,
+          total: progress.total,
+          sent: progress.sent,
+          skipped: progress.skipped,
+          failed: progress.failed,
+          message: progress.message,
+          status: progress.status
         });
       }
-      
-      return { success: true, data: result.data };
-    } else {
-      console.error('❌ Failed to send bulk emails:', result.error);
-      throw new Error(result.error || 'Bulk email failed');
+
+      if (progress.status === 'complete') {
+        return {
+          success: true,
+          data: {
+            clientId,
+            totalUnits: Number(progress.total) || 0,
+            sent: Number(progress.sent) || 0,
+            skipped: Number(progress.skipped) || 0,
+            failed: Number(progress.failed) || 0,
+            emails: Array.isArray(progress.emails) ? progress.emails : []
+          }
+        };
+      }
+
+      if (progress.status === 'error') {
+        throw new Error(progress.message || 'Bulk email failed');
+      }
     }
-    
+
+    throw new Error('Bulk email is still running after 60 minutes. Please check progress and retry.');
   } catch (error) {
-    // Stop polling on error
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-    }
     console.error('❌ Error sending bulk emails:', error);
     throw error;
   }

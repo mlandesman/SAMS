@@ -8,6 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
+import { formatTimestampMexico } from '../../utils/timezone';
 
 function BackupSettings() {
   const [status, setStatus] = useState(null);
@@ -85,18 +86,7 @@ function BackupSettings() {
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return '—';
-    const date = timestamp._seconds 
-      ? new Date(timestamp._seconds * 1000) 
-      : new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true
-    });
+    return formatTimestampMexico(timestamp);
   };
 
   const formatSize = (bytes) => {

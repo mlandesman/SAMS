@@ -1047,13 +1047,6 @@ export default function ReconciliationView() {
                   >
                     <FontAwesomeIcon icon={faClipboardCheck} /> Justify selected
                   </button>
-                  <button
-                    type="button"
-                    className="recon-secondary-btn"
-                    onClick={() => navigate('/add-expense')}
-                  >
-                    Add expense
-                  </button>
                 </div>
                 <p className="recon-match-totals" aria-live="polite">
                   Bank selected: <strong>{formatWorkbenchCentavos(bankSumCentavos)}</strong>

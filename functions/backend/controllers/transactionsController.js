@@ -690,7 +690,38 @@ async function updateTransaction(clientId, txnId, newData) {
   }
   const originalData = originalDoc.data();
   if (originalData.clearedDate) {
-    throw new Error('Cannot modify a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+    if (newData.amount !== undefined) {
+      const incomingAmountCentavos = validateCentavos(dollarsToCents(newData.amount), 'amount');
+      const originalAmountCentavos = Number(originalData.amount) || 0;
+      if (incomingAmountCentavos !== originalAmountCentavos) {
+        throw new Error('Cannot change amount on a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+      }
+    }
+
+    if (newData.date !== undefined) {
+      const normalizeDateKey = (value) => {
+        if (!value) return '';
+        if (typeof value?.toDate === 'function') {
+          const d = value.toDate();
+          return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+        }
+        const sec = value?.seconds ?? value?._seconds;
+        if (sec != null) {
+          const d = new Date(Number(sec) * 1000);
+          return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+        }
+        const d = typeof value === 'string'
+          ? dateService.parseFromFrontend(value)
+          : new Date(value);
+        return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+      };
+
+      const incomingDateKey = normalizeDateKey(newData.date);
+      const originalDateKey = normalizeDateKey(originalData.date);
+      if (incomingDateKey !== originalDateKey) {
+        throw new Error('Cannot change date on a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+      }
+    }
   }
 
   try {
