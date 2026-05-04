@@ -29,6 +29,7 @@ import AddExpenseView from './views/AddExpenseView';
 import ReconciliationView from './views/ReconciliationView';
 import WaterBillsViewV3 from './views/WaterBillsViewV3';
 import PropaneView from './components/propane/PropaneView';
+import PropaneGraphPrototypeView from './views/PropaneGraphPrototypeView';
 import PublicVotingPage from './views/PublicVotingPage';
 import InviteView from './views/InviteView';
 
@@ -276,6 +277,11 @@ function AppContent() {
                   <Route path="/propane" element={
                     <ClientProtectedRoute>
                       <PropaneView />
+                    </ClientProtectedRoute>
+                  } />
+                  <Route path="/propane-graph-prototype" element={
+                    <ClientProtectedRoute>
+                      <PropaneGraphPrototypeView />
                     </ClientProtectedRoute>
                   } />
                   <Route path="/add-expense" element={

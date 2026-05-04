@@ -25,7 +25,7 @@ import { isFeatureEnabled } from '../utils/featureFlags.js';
 
 /**
  * Get utility graph data for a unit
- * Returns propane gauge data for MTC, water bars for AVII
+ * Returns propane trend data for MTC, water bars for AVII
  * @param {Object} db - Firestore database instance
  * @param {string} clientId - Client ID (e.g., 'MTC', 'AVII')
  * @param {string} unitId - Unit ID (e.g., '101', '1A')
@@ -41,8 +41,8 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
       .get();
     
     if (configDoc.exists) {
-      // MTC: Propane gauge
-      return await getPropaneGaugeData(db, clientId, unitId, configDoc.data());
+      // MTC: Propane 6-month trend
+      return await getPropaneTrendData(db, clientId, unitId, configDoc.data());
     }
     
     // AVII: Water consumption bars
@@ -54,17 +54,16 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
 }
 
 /**
- * Get propane gauge data for MTC units
+ * Get propane trend data for MTC units
  * @param {Object} db - Firestore database instance
  * @param {string} clientId - Client ID (should be 'MTC')
  * @param {string} unitId - Unit ID
  * @param {Object} config - Propane tanks config with thresholds
- * @returns {Promise<Object|null>} Propane gauge data or null
+ * @returns {Promise<Object|null>} Propane trend data or null
  */
-async function getPropaneGaugeData(db, clientId, unitId, config) {
+async function getPropaneTrendData(db, clientId, unitId, config) {
   try {
-    // Get all propane readings (no orderBy to avoid index requirement)
-    // We'll sort in memory to find the most recent
+    // Get all propane readings and sort in-memory to support cross-year rolling windows.
     const readingsSnap = await db
       .collection('clients').doc(clientId)
       .collection('projects').doc('propaneTanks')
@@ -75,40 +74,45 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
       return null;
     }
     
-    // Sort in memory: most recent first (year desc, month desc)
-    const sortedDocs = readingsSnap.docs.sort((a, b) => {
-      const aData = a.data();
-      const bData = b.data();
-      if (aData.year !== bData.year) return bData.year - aData.year;
-      return bData.month - aData.month;
-    });
-    
-    const doc = sortedDocs[0];
-    const data = doc.data();
-    
-    const unitReading = data.readings?.[unitId];
-    if (!unitReading) {
+    const toLevel = (rawReading) => {
+      if (typeof rawReading === 'number') return rawReading;
+      if (rawReading && typeof rawReading === 'object' && Number.isFinite(rawReading.level)) {
+        return rawReading.level;
+      }
+      return null;
+    };
+
+    const periods = readingsSnap.docs
+      .map((doc) => doc.data() || {})
+      .filter((row) => Number.isFinite(row.year) && Number.isFinite(row.month))
+      .map((row) => ({
+        year: row.year,
+        month: row.month, // 0-based month index
+        level: toLevel((row.readings || {})[unitId]),
+      }))
+      .filter((row) => Number.isFinite(row.level))
+      .sort((a, b) => (a.year === b.year ? a.month - b.month : a.year - b.year))
+      .slice(-6)
+      .map((row) => ({
+        year: row.year,
+        month: row.month,
+        level: Math.max(0, Math.min(100, row.level)),
+      }));
+
+    if (periods.length === 0) {
       return null;
     }
-    
-    // Handle both formats: number (50) or object ({level: 50})
-    let level = 0;
-    if (typeof unitReading === 'number') {
-      level = unitReading;
-    } else if (typeof unitReading === 'object' && unitReading.level !== undefined) {
-      level = unitReading.level;
-    } else {
-      return null;
-    }
-    
+
+    const latestLevel = periods[periods.length - 1].level;
     return {
-      type: 'propane-gauge',
-      level: Math.max(0, Math.min(100, level)), // Clamp to 0-100
+      type: 'propane-trend',
+      periods,
+      latestLevel,
       thresholds: config.thresholds || { critical: 10, low: 30 },
-      readingDate: `${data.year}-${String(data.month).padStart(2, '0')}`
+      readingDate: `${periods[periods.length - 1].year}-${String(periods[periods.length - 1].month).padStart(2, '0')}`,
     };
   } catch (error) {
-    logError(`❌ [Propane Gauge] Error fetching propane gauge data for ${clientId}/${unitId}:`, error);
+    logError(`❌ [Propane Trend] Error fetching propane trend data for ${clientId}/${unitId}:`, error);
     return null;
   }
 }
