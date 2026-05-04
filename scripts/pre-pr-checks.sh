@@ -98,6 +98,29 @@ else
   pass "No CommonJS violations"
 fi
 
+# ━━━ CHECK 5: Firestore client reads require rules review ━━━
+header "Check 5: Firestore client reads vs firestore.rules"
+FIRESTORE_RULES_CHANGED=$(echo "$CHANGED_FILES" | grep -E '^firestore\.rules$' || true)
+FIRESTORE_CLIENT_FILES=$(echo "$FRONTEND_CHANGES" | xargs grep -lE "from ['\"]firebase/firestore['\"]" 2>/dev/null | grep -v 'node_modules' | grep -v '_archive' || true)
+FIRESTORE_READ_CALLS=$(echo "$FIRESTORE_CLIENT_FILES" | xargs grep -nE '\b(getDoc|getDocs|onSnapshot|collection|collectionGroup|query)\(' 2>/dev/null | grep -v 'node_modules' | grep -v '_archive' || true)
+
+if [ -n "$FIRESTORE_READ_CALLS" ]; then
+  if [ -z "$FIRESTORE_RULES_CHANGED" ]; then
+    warn "Detected frontend Firestore read usage in this PR, but firestore.rules was not changed."
+    echo "Potentially affected lines:"
+    echo "$FIRESTORE_READ_CALLS" | head -20
+    echo ""
+    echo "Action required:"
+    echo "  - Confirm rule coverage for each new/changed client read path."
+    echo "  - If needed, update firestore.rules in this PR."
+    echo "  - If no rule change is needed, document why in the PR description."
+  else
+    pass "Frontend Firestore reads detected and firestore.rules changed in this PR"
+  fi
+else
+  pass "No frontend Firestore client-read changes detected"
+fi
+
 # ━━━ SUMMARY ━━━
 header "Summary"
 if [ "$ISSUES_FOUND" -gt 0 ]; then
