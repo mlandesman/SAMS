@@ -707,13 +707,20 @@ async function updateTransaction(clientId, txnId, newData) {
         }
         const sec = value?.seconds ?? value?._seconds;
         if (sec != null) {
-          const d = new Date(Number(sec) * 1000);
+          const d = admin.firestore.Timestamp.fromMillis(Number(sec) * 1000).toDate();
           return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
         }
-        const d = typeof value === 'string'
-          ? dateService.parseFromFrontend(value)
-          : new Date(value);
-        return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+        if (typeof value === 'string') {
+          const parsed = dateService.parseFromFrontend(value);
+          const parsedDate = typeof parsed?.toDate === 'function' ? parsed.toDate() : null;
+          return parsedDate && !Number.isNaN(parsedDate.getTime())
+            ? parsedDate.toISOString().slice(0, 10)
+            : '';
+        }
+        if (value instanceof Date) {
+          return Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+        }
+        return '';
       };
 
       const incomingDateKey = normalizeDateKey(newData.date);

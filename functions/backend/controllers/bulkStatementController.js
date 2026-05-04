@@ -708,8 +708,8 @@ export async function bulkSendStatementEmails(req, res) {
       for (let i = 0; i < units.length; i++) {
         const unit = units[i];
         const { unitId, unitNumber, ownerName } = unit;
-
-        await saveProgress(i + 1, 'processing', formatMessage('Sending email for', unitId, ownerName));
+        await saveProgress(i, 'processing', formatMessage('Sending email for', unitId, ownerName));
+        let unitOutcomeMessage = '';
 
         try {
           // Send email using existing sendStatementEmail function
@@ -743,6 +743,7 @@ export async function bulkSendStatementEmails(req, res) {
                 status: 'skipped',
                 reason: 'No owner email address'
               });
+              unitOutcomeMessage = formatMessage('Skipped (no owner email):', unitId, ownerName);
             } else {
               // Failed
               console.log(`   ❌ ${unitId}: ${emailResult.error}`);
@@ -753,7 +754,9 @@ export async function bulkSendStatementEmails(req, res) {
                 status: 'failed',
                 error: emailResult.error
               });
+              unitOutcomeMessage = formatMessage('Failed:', unitId, ownerName);
             }
+            await saveProgress(i + 1, 'processing', unitOutcomeMessage);
             continue;
           }
 
@@ -767,6 +770,8 @@ export async function bulkSendStatementEmails(req, res) {
             cc: emailResult.cc,
             language: emailResult.language
           });
+          unitOutcomeMessage = formatMessage('Sent email for', unitId, ownerName);
+          await saveProgress(i + 1, 'processing', unitOutcomeMessage);
 
           // Small delay to avoid overwhelming email service
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -779,6 +784,8 @@ export async function bulkSendStatementEmails(req, res) {
             status: 'error',
             error: error.message
           });
+          unitOutcomeMessage = formatMessage('Error sending email for', unitId, ownerName);
+          await saveProgress(i + 1, 'processing', unitOutcomeMessage);
         }
       }
 

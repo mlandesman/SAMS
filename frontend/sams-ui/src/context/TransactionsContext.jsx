@@ -307,6 +307,10 @@ export const TransactionsProvider = ({ children }) => {
     try {
       // Check if this is an HOA transaction before deletion
       const transactionToDelete = filteredTransactions.find(txn => txn.id === transactionId);
+      if (transactionToDelete?.clearedDate) {
+        setError('Cleared transaction cannot be deleted. It was accepted in bank reconciliation.');
+        return false;
+      }
       const isHOATransaction = transactionToDelete && (
         transactionToDelete.category === 'HOA Dues' || 
         transactionToDelete.metadata?.type === 'hoa_dues'
@@ -412,6 +416,10 @@ export const TransactionsProvider = ({ children }) => {
           break;
         case 'delete':
           if (selectedTransaction) {
+            if (selectedTransaction.clearedDate) {
+              alert('Cleared transaction cannot be deleted. It was accepted in bank reconciliation.');
+              break;
+            }
             setShowDeleteConfirmation(true);
           } else {
             alert('Please select a transaction to delete');

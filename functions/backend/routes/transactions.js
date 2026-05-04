@@ -331,14 +331,15 @@ router.put('/:txnId',
       res.status(400).json({ error: 'Failed to update transaction' });
     }
   } catch (error) {
-    logError('Error updating transaction:', error);
     const msg = String(error?.message || '');
     if (
       msg.includes('Cannot change amount on a cleared/reconciled transaction') ||
       msg.includes('Cannot change date on a cleared/reconciled transaction')
     ) {
+      logDebug('⚠️ Blocked locked-field edit on cleared transaction:', { reason: msg });
       return res.status(409).json({ error: msg });
     }
+    logError('Error updating transaction:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });

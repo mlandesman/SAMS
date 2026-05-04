@@ -98,6 +98,15 @@
   color: #856404;
 }
 
+.cleared-split-note {
+  padding: 10px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff3cd;
+  color: #856404;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 /* Allocations Container */
 .allocations-container {
   flex: 1;
@@ -180,6 +189,12 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
+.amount-input:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
 /* Notes Input */
 .notes-input {
   width: 100%;
@@ -211,6 +226,11 @@
   background-color: rgba(220, 53, 69, 0.1);
 }
 
+.remove-allocation-button:disabled {
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
 .add-allocation-button {
   display: flex;
   align-items: center;
@@ -231,6 +251,13 @@
   background-color: rgba(0, 123, 255, 0.05);
   border-color: #0056b3;
   color: #0056b3;
+}
+
+.add-allocation-button:disabled {
+  border-color: #adb5bd;
+  color: #adb5bd;
+  background: #f8f9fa;
+  cursor: not-allowed;
 }
 
 /* Error Messages */

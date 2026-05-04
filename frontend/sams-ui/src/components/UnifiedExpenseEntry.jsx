@@ -90,6 +90,7 @@ const UnifiedExpenseEntry = ({
   
   // Bank fees checkbox state (for AVII and corporate accounts)
   const [addBankFees, setAddBankFees] = useState(false);
+  const isClearedTransaction = Boolean(initialData?.clearedDate);
 
   // Confirmation modal state - removed, now handled by parent component
 
@@ -831,7 +832,7 @@ const UnifiedExpenseEntry = ({
 
   const content = (
     <div className="expense-entry-container">
-      <div className="expense-entry-header">
+      <div className={`expense-entry-header ${isClearedTransaction ? 'cleared-header' : ''}`}>
         <div className="header-content">
           {mode === 'screen' && (
             <button className="back-button" onClick={handleCancel}>
@@ -839,8 +840,16 @@ const UnifiedExpenseEntry = ({
             </button>
           )}
           <div className="header-text">
-            <h2 className="entry-title">{initialData ? 'Edit Expense' : 'Add Expense'}</h2>
-            <div className="client-name">{clientName}</div>
+            {isClearedTransaction ? (
+              <h2 className="entry-title cleared-warning-title">
+                CLEARED TRANSACTION -- AMOUNT/DATE FIELDS CANNOT BE CHANGED
+              </h2>
+            ) : (
+              <>
+                <h2 className="entry-title">{initialData ? 'Edit Expense' : 'Add Expense'}</h2>
+                <div className="client-name">{clientName}</div>
+              </>
+            )}
           </div>
           {mode === 'modal' && (
             <button className="close-button" onClick={handleCancel}>
@@ -889,6 +898,7 @@ const UnifiedExpenseEntry = ({
                     value={formData.date}
                     onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                     className={fieldErrors.date ? 'error' : ''}
+                    disabled={isClearedTransaction}
                     required
                   />
                   {fieldErrors.date && <span className="field-error">{fieldErrors.date}</span>}
@@ -905,6 +915,7 @@ const UnifiedExpenseEntry = ({
                     step="0.01"
                     min="0"
                     className={fieldErrors.amount ? 'error' : ''}
+                    disabled={isClearedTransaction}
                     required
                   />
                   {fieldErrors.amount && <span className="field-error">{fieldErrors.amount}</span>}
@@ -1044,12 +1055,13 @@ const UnifiedExpenseEntry = ({
                   
                   {/* Bank Fees Checkbox - auto-checked for bank accounts */}
                   <div className="bank-fees-checkbox" style={{ marginTop: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={addBankFees}
                         onChange={(e) => setAddBankFees(e.target.checked)}
-                        style={{ cursor: 'pointer' }}
+                        disabled={isClearedTransaction}
+                        style={{ cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}
                       />
                       <span>Add Bank Fees (+$5.80)</span>
                     </label>
@@ -1271,6 +1283,7 @@ const UnifiedExpenseEntry = ({
         isOpen={showSplitModal}
         onClose={() => setShowSplitModal(false)}
         onSave={handleSplitSave}
+        isClearedTransaction={isClearedTransaction}
         transactionData={{
           date: formData.date,
           vendorId: formData.vendorId,

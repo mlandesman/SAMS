@@ -26,6 +26,7 @@ import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 import creditService from '../services/creditService.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
@@ -2061,6 +2062,12 @@ async function updateCreditBalanceFromModule(req, res) {
     
     const changeCentavos = dollarsToCents(changeAmount);
     const source = module === 'hoa' ? 'hoaDues' : module;
+    if (!isAllowedCreditSource(source)) {
+      return res.status(400).json({
+        success: false,
+        error: buildInvalidCreditSourceMessage(source)
+      });
+    }
     const creditNote = description || `${module} credit update (${changeType || 'unspecified'})`;
 
     await creditService.updateCreditBalance(

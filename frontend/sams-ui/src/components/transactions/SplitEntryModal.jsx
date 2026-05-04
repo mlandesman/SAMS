@@ -26,7 +26,8 @@ const SplitEntryModal = ({
   onSave, 
   transactionData,
   existingAllocations = [],
-  categories = []
+  categories = [],
+  isClearedTransaction = false
 }) => {
   const { selectedClient } = useClient();
   const [allocations, setAllocations] = useState([]);
@@ -379,6 +380,11 @@ const SplitEntryModal = ({
         <div className={`remaining-balance ${remaining === 0 ? 'balanced' : remaining < 0 ? 'over' : 'under'}`}>
           <strong>Remaining: {formatCurrency(remaining)}</strong>
         </div>
+        {isClearedTransaction && (
+          <div className="cleared-split-note">
+            Cleared transaction: split amounts are locked. You can edit categories and notes only.
+          </div>
+        )}
 
         {/* Allocations Table */}
         <div className="allocations-container">
@@ -420,6 +426,7 @@ const SplitEntryModal = ({
                         placeholder="0.00"
                         step="0.01"
                         min="0"
+                        disabled={loading || isClearedTransaction}
                       />
                     </div>
                   </td>
@@ -431,6 +438,7 @@ const SplitEntryModal = ({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
+                          if (isClearedTransaction) return;
                           addAllocation();
                         }
                       }}
@@ -445,6 +453,7 @@ const SplitEntryModal = ({
                         className="remove-allocation-button"
                         onClick={() => removeAllocation(allocation.id)}
                         title="Remove allocation"
+                        disabled={isClearedTransaction}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -458,6 +467,7 @@ const SplitEntryModal = ({
                   <button
                     className="add-allocation-button"
                     onClick={addAllocation}
+                    disabled={isClearedTransaction}
                   >
                     <FontAwesomeIcon icon={faPlus} />
                     Add Allocation

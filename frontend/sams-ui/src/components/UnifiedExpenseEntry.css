@@ -158,6 +158,10 @@
   flex-shrink: 0;
 }
 
+.expense-entry-header.cleared-header {
+  background: linear-gradient(135deg, #b42318 0%, #dc2626 100%);
+}
+
 .header-content {
   display: flex;
   align-items: center;
@@ -181,6 +185,16 @@
   font-size: 14px;
   opacity: 0.9;
   margin-top: 4px;
+}
+
+.cleared-warning-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
 }
 
 .back-button, .close-button {

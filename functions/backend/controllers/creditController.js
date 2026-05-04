@@ -3,6 +3,7 @@
 // Routes requests to CreditService for business logic
 
 import creditService from '../services/creditService.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 
 export class CreditController {
   constructor() {
@@ -73,6 +74,11 @@ export class CreditController {
       if (!source) {
         return res.status(400).json({ 
           error: 'source is required' 
+        });
+      }
+      if (!isAllowedCreditSource(source)) {
+        return res.status(400).json({
+          error: buildInvalidCreditSourceMessage(source)
         });
       }
 
@@ -186,6 +192,11 @@ export class CreditController {
       if (!source) {
         return res.status(400).json({ 
           error: 'source is required' 
+        });
+      }
+      if (!isAllowedCreditSource(source)) {
+        return res.status(400).json({
+          error: buildInvalidCreditSourceMessage(source)
         });
       }
 
@@ -329,6 +340,11 @@ export class CreditController {
       }
       if (notes !== undefined) updates.notes = notes;
       if (source !== undefined) updates.source = source;
+      if (updates.source !== undefined && !isAllowedCreditSource(updates.source)) {
+        return res.status(400).json({
+          error: buildInvalidCreditSourceMessage(updates.source)
+        });
+      }
 
       // Validate date if provided
       if (updates.date !== undefined) {
