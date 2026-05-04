@@ -218,17 +218,18 @@ class PropaneReadingsService {
    * Get rolling recent readings for a single unit across year boundaries.
    * @param {string} clientId
    * @param {string} unitId
-   * @param {{months?: number, asOfYear?: number, asOfMonth?: number}} options
+   * @param {{months?: number, asOfYear?: number, asOfMonth?: number, db?: Object}} options
    * @returns {Promise<Array<{year:number, month:number, level:number}>>}
    */
   async getRecentUnitLevels(clientId, unitId, options = {}) {
     await this._initializeDb();
+    const activeDb = options.db || this.db;
 
     const months = Number.isFinite(options.months) && options.months > 0 ? options.months : 6;
     const asOfYear = Number.isFinite(options.asOfYear) ? options.asOfYear : null;
     const asOfMonth = Number.isFinite(options.asOfMonth) ? options.asOfMonth : null;
 
-    const readingsSnap = await this.db
+    const readingsSnap = await activeDb
       .collection('clients').doc(clientId)
       .collection('projects').doc('propaneTanks')
       .collection('readings')

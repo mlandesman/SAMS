@@ -64,7 +64,7 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
  */
 async function getPropaneTrendData(db, clientId, unitId, config) {
   try {
-    const periods = await propaneReadingsService.getRecentUnitLevels(clientId, unitId, { months: 6 });
+    const periods = await propaneReadingsService.getRecentUnitLevels(clientId, unitId, { months: 6, db });
 
     if (periods.length === 0) {
       return null;
