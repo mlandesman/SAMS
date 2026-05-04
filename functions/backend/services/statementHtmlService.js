@@ -1879,7 +1879,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           : (data.utilityGraph.type === 'water-bars'
               ? generateWaterBarsSvg(data.utilityGraph.periods, language)
               : (data.utilityGraph.type === 'propane-trend'
-                  ? generatePropaneTrendSvg(data.utilityGraph.periods || [])
+                  ? generatePropaneTrendSvg(data.utilityGraph.periods || [], language)
                   : generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)))
         }
       </div>

@@ -22,6 +22,7 @@ import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import propaneReadingsService from './propaneReadingsService.js';
 
 /**
  * Get utility graph data for a unit
@@ -63,41 +64,7 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
  */
 async function getPropaneTrendData(db, clientId, unitId, config) {
   try {
-    // Get all propane readings and sort in-memory to support cross-year rolling windows.
-    const readingsSnap = await db
-      .collection('clients').doc(clientId)
-      .collection('projects').doc('propaneTanks')
-      .collection('readings')
-      .get();
-    
-    if (readingsSnap.empty) {
-      return null;
-    }
-    
-    const toLevel = (rawReading) => {
-      if (typeof rawReading === 'number') return rawReading;
-      if (rawReading && typeof rawReading === 'object' && Number.isFinite(rawReading.level)) {
-        return rawReading.level;
-      }
-      return null;
-    };
-
-    const periods = readingsSnap.docs
-      .map((doc) => doc.data() || {})
-      .filter((row) => Number.isFinite(row.year) && Number.isFinite(row.month))
-      .map((row) => ({
-        year: row.year,
-        month: row.month, // 0-based month index
-        level: toLevel((row.readings || {})[unitId]),
-      }))
-      .filter((row) => Number.isFinite(row.level))
-      .sort((a, b) => (a.year === b.year ? a.month - b.month : a.year - b.year))
-      .slice(-6)
-      .map((row) => ({
-        year: row.year,
-        month: row.month,
-        level: Math.max(0, Math.min(100, row.level)),
-      }));
+    const periods = await propaneReadingsService.getRecentUnitLevels(clientId, unitId, { months: 6 });
 
     if (periods.length === 0) {
       return null;
