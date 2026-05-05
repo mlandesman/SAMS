@@ -205,6 +205,11 @@ export async function bulkSendStatementEmails(clientId, fiscalYear = null, onPro
     if (prependEs) body.prependEs = prependEs;
 
     let kickoffHadAmbiguousFailure = false;
+    const definitiveKickoffError = (message) => {
+      const err = new Error(message);
+      err.isDefinitiveKickoffError = true;
+      return err;
+    };
 
     // Start async bulk email job. If gateway/network fails, poll once before surfacing error.
     try {
@@ -222,10 +227,13 @@ export async function bulkSendStatementEmails(clientId, fiscalYear = null, onPro
           kickoffHadAmbiguousFailure = true;
           console.warn('⚠️ Bulk email kickoff returned server error; checking progress before failing:', message);
         } else {
-          throw new Error(message);
+          throw definitiveKickoffError(message);
         }
       }
     } catch (kickoffError) {
+      if (kickoffError?.isDefinitiveKickoffError) {
+        throw kickoffError;
+      }
       kickoffHadAmbiguousFailure = true;
       console.warn('⚠️ Bulk email kickoff request failed; checking progress before failing:', kickoffError);
     }
