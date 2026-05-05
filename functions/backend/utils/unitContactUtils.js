@@ -147,7 +147,8 @@ export function normalizeOwners(owners) {
   return owners.map(owner => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof owner === 'string') {
-      logWarn('⚠️  Found legacy string format owner - should be migrated:', owner);
+      // SoA/email flows normalize contacts defensively; keep this as debug to avoid noisy false alarms.
+      logDebug('Normalizing legacy string owner contact:', owner);
       return { name: owner.trim(), email: '' };
     }
     // UID format: {userId}
@@ -180,7 +181,8 @@ export function normalizeManagers(managers) {
   return managers.map(manager => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof manager === 'string') {
-      logWarn('⚠️  Found legacy string format manager - should be migrated:', manager);
+      // SoA/email flows normalize contacts defensively; keep this as debug to avoid noisy false alarms.
+      logDebug('Normalizing legacy string manager contact:', manager);
       return { name: manager.trim(), email: '' };
     }
     // UID format: {userId}
