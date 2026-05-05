@@ -20,6 +20,25 @@
 
 ---
 
+### ✅ Sprint CLEANUP-SWEEP-1: Pre-UC Reliability and Bug Cleanup (Complete)
+*Sequential cleanup pass before UC-LITE kickoff; focused on known user-facing regressions and debt*
+
+| # | Title | Priority | Status |
+|---|-------|----------|--------|
+| **79** | [BUG] HTTP 502 timeout on Email All completion | high | ✅ CLOSED |
+| **303** | [Tech Debt] Backup history timestamps show incorrect timezone in UI | medium | ✅ CLOSED |
+| **305** | [Debt] Reconciliation "Add Transaction" UI action is broken/misleading | medium | ✅ CLOSED |
+| **309** | [Bug] Editing a Cleared Transaction throws an error | high | ✅ CLOSED |
+| **310** | Add `Reconciliation` option to Credit Balance Source dropdown | medium | ✅ CLOSED |
+| **306** | [Debt] Reconciliation Draft/Reviewing cannot be reopened | medium | ⏸️ DEFERRED (OPEN) |
+
+**Theme**: Remove noisy false errors and lock down reconciliation/credit edge cases before non-HOA expansion.  
+**Risk**: Medium (cross-cutting frontend + backend + validation touchpoints).  
+**Status**: ✅ COMPLETE (May 4, 2026) — merged via PR #326 with BugBot follow-up fixes applied and cleared.  
+**Next Sprint**: UC-LITE (non-association/single-family onboarding path) remains the next strategic sprint.
+
+---
+
 ### ✅ Sprint UPC-CREDIT-FIX: Credit-Balance Allocation Write-Back Bug (Complete)
 *Production hotfix sprint — Issue #308 — resolved as data-only reconciliation, no runtime code changed*
 

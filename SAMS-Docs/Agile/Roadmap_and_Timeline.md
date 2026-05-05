@@ -72,6 +72,7 @@
 | ~~15~~ | ~~**BUDGET-PROJ-1**~~ | ~~Fiscal Year Projection Baseline (design-first)~~ | ~~4-6h~~ | ~~#165 phase A/B/C (design sign-off, baseline implementation, validation)~~ ✅ COMPLETE (PR #304, Apr 14, 2026) |
 | ~~16~~ | ~~**UPC-CREDIT-FIX**~~ | ~~Credit-balance allocation write-back bug~~ | ~~4-8h (diagnosis-heavy)~~ | ~~#308 — production hotfix, blocker~~ ✅ COMPLETE Apr 22, 2026 — data-only reconciliation, no runtime code changed; follow-ups #310, #311 |
 | ~~17~~ | ~~**LOCALIZATION-DESKTOP-NONADMIN**~~ | ~~Desktop non-admin localization parity~~ | ~~4-8h~~ | ~~Carry PR #314/#317 localized backend contract into desktop non-admin views and list-management UX (#316); residual carry-forward tracked in #319~~ ✅ COMPLETE (PR #320, merged Apr 27, 2026; #318 deferred, #319 carry-forward) |
+| ~~17.5~~ | ~~**CLEANUP-SWEEP-1**~~ | ~~Pre-UC reliability + bug cleanup~~ | ~~6-10h~~ | ~~#79, #303, #305, #309, #310~~ ✅ COMPLETE (PR #326, merged May 4, 2026; #306 deferred/open) |
 | **18 (NEXT)** | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; onboard first non-HOA 2-property client path (Epic #54 lite) |
 | --- | **PROD-BACKUP-STABILIZATION** | Backup reliability follow-up | 3-5h | Async backup trigger/polling follow-up + #303 timezone display correction (queued unless promoted by production risk) |
 | --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
@@ -85,9 +86,11 @@
 
 **Deferred**: DOC-LIB (after Sprint 24), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
 
-**Current Focus**: APM v1.0.1 base setup documentation/coordination workstream is complete (no production-feature deployment in that effort), backend localization sprint closeout was completed on Apr 24, 2026, and **LOCALIZATION-DESKTOP-NONADMIN** is now complete/merged (PR #320). Feature sprint queue now advances to **UC-LITE** (next). **PROD-BACKUP-STABILIZATION** and **DEBT-1** remain queued unless promoted by risk. WhatsApp remains **paused**.
+**Current Focus**: **CLEANUP-SWEEP-1** is complete/merged (PR #326), including Email All timeout/polling hardening and cleared-transaction/credit-source fixes. Feature sprint queue now advances to **UC-LITE** (next strategic sprint for non-association/single-family support). **#306** remains open/deferred by intent; **PROD-BACKUP-STABILIZATION** and **DEBT-1** remain queued unless promoted by risk. WhatsApp remains **paused**.
 
 **Budget Sprint Clarification:** `BUDGET-PROJ-1` and `BUDGET-PROJ` were overlapping labels. The roadmap now treats them as a phased sequence for the same problem space: **BUDGET-PROJ-1** = baseline projection engine and runway chart, **BUDGET-PROJ-2** = optional diagnostics/polish after baseline validation.
+
+**Schedule Note (May 4, 2026 — Cleanup sweep closeout):** PR #326 merged to `main` after BugBot review/remediation. Closed issues: #79, #303, #305, #309, #310. Deferred intentionally: #306 (reconciliation reopen workflow) for separate planning due to broader state-model implications. Next sprint target remains **UC-LITE**.
 
 **Schedule Note (Apr 13, 2026 — PROD-STAB closed):** PR #302 merged for issue `#266` (canonical `canLogin` login-eligibility contract and cleanup of legacy `loginEnabled` handling). This closes PROD-STABILIZATION-1.
 
