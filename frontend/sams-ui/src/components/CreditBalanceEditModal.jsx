@@ -29,6 +29,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
   const [amount, setAmount] = useState(''); // For add/remove mode
   const [entryDate, setEntryDate] = useState(getMexicoDateString());
   const [notes, setNotes] = useState('');
+  const [source, setSource] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -49,6 +50,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       }
       setEntryDate(getMexicoDateString());
       setNotes('');
+      setSource('admin');
       setError(null);
     }
   }, [isOpen, currentBalance, isAmountMode]);
@@ -125,6 +127,11 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       return;
     }
 
+    if (isAmountMode && !source.trim()) {
+      setError(t('creditEntry.errorProvideSource'));
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -166,7 +173,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
           amountToAdd, // Positive for add, negative for remove
           dateISO,
           notes.trim(),
-          'admin'
+          source.trim()
         );
       } else {
         // For Edit Balance: Use updateCreditBalance API with new balance
@@ -207,6 +214,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
     setAmount('');
     setEntryDate(getMexicoDateString());
     setNotes('');
+    setSource('admin');
     setError(null);
     onClose();
   };
@@ -349,6 +357,25 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
                   </div>
                 </div>
               )}
+
+              <div className="form-group">
+                <label htmlFor="source">{t('creditEntry.sourceRequired')}</label>
+                <select
+                  id="source"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  disabled={loading}
+                  required
+                >
+                  <option value="admin">admin</option>
+                  <option value="correction">correction</option>
+                  <option value="reconciliation">reconciliation</option>
+                  <option value="unifiedPayment">unifiedPayment</option>
+                  <option value="hoaDues">hoaDues</option>
+                  <option value="waterBills">waterBills</option>
+                  <option value="running_balance_computation">running_balance_computation</option>
+                </select>
+              </div>
             </>
           ) : (
             <>

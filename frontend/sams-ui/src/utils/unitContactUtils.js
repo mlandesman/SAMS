@@ -21,7 +21,7 @@ export function normalizeOwners(owners) {
   return owners.map(owner => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof owner === 'string') {
-      console.warn('⚠️  Found legacy string format owner - should be migrated:', owner);
+      console.debug('Normalizing legacy string owner contact:', owner);
       return { name: owner.trim(), email: '' };
     }
     // New format: {name, email}
@@ -45,7 +45,7 @@ export function normalizeManagers(managers) {
   return managers.map(manager => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof manager === 'string') {
-      console.warn('⚠️  Found legacy string format manager - should be migrated:', manager);
+      console.debug('Normalizing legacy string manager contact:', manager);
       return { name: manager.trim(), email: '' };
     }
     // New format: {name, email}

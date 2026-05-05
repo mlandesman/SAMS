@@ -1,6 +1,23 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "79",
+            "303",
+            "305",
+            "309",
+            "310"
+          ],
+          "text": "Cleanup sprint fixes: async Email All progress reliability, backup timezone display consistency, reconciliation action cleanup, cleared transaction lock UX/backend conflict handling, and credit source reconciliation allowlist with add-modal source selector."
+        }
+      ]
+    },
+    {
       "version": "2.0.0",
       "date": "2026-05-04",
       "changes": [

@@ -57,7 +57,14 @@ service cloud.firestore {
       allow update: if isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
-    
+
+    // Feature flags consumed by authenticated frontend clients.
+    // Keep scope narrow to avoid exposing other system/* documents.
+    match /system/featureFlags {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
     // Default deny for anything else
     match /{document=**} {
       allow read, write: if false;

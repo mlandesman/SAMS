@@ -1527,9 +1527,10 @@ function TransactionsView() {
         {/* Only SuperAdmin can delete transactions */}
         {isSuperAdmin(samsUser) && (
           <button 
-            className={`action-item ${!selectedTransaction ? 'disabled' : ''}`}
+            className={`action-item ${!selectedTransaction || selectedTransaction?.clearedDate ? 'disabled' : ''}`}
             onClick={() => handleAction('delete')}
-            disabled={!selectedTransaction}
+            disabled={!selectedTransaction || !!selectedTransaction?.clearedDate}
+            title={selectedTransaction?.clearedDate ? 'Cleared transactions cannot be deleted.' : undefined}
           >
             <FontAwesomeIcon icon={faTrash} />
             <span>{t('tx.deleteEntry')}</span>
@@ -1805,6 +1806,7 @@ function TransactionsView() {
               amount: extractAmount(selectedTransaction.amount, false),
               // For adjustments, store the original amount with sign for use when saving
               originalAmount: extractAmount(selectedTransaction.amount, true),
+              clearedDate: selectedTransaction.clearedDate || null,
               vendorId: selectedTransaction.vendorId || '',  // Use ID field
               categoryId: selectedTransaction.categoryId || '',  // Use ID field
               accountId: selectedTransaction.accountId || '',  // Use ID field

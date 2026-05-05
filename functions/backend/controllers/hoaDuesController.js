@@ -26,6 +26,7 @@ import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 import creditService from '../services/creditService.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
@@ -2050,18 +2051,32 @@ async function getCreditBalanceForModule(req, res) {
 async function updateCreditBalanceFromModule(req, res) {
   try {
     const { clientId, unitId, year } = req.params;
-    const { 
+    const {
       newBalance, 
       changeAmount, 
       changeType, 
       description, 
       transactionId,
-      module = 'unknown'
+      module
     } = req.body;
     
     const changeCentavos = dollarsToCents(changeAmount);
-    const source = module === 'hoa' ? 'hoaDues' : module;
-    const creditNote = description || `${module} credit update (${changeType || 'unspecified'})`;
+    const normalizedModule = String(module || '').trim();
+    const moduleToSource = {
+      hoa: 'hoaDues',
+      hoaDues: 'hoaDues',
+      water: 'waterBills',
+      waterBills: 'waterBills'
+    };
+    // Preserve backward compatibility: requests that omit module were previously accepted.
+    const source = moduleToSource[normalizedModule] || (normalizedModule || 'hoaDues');
+    if (!isAllowedCreditSource(source)) {
+      return res.status(400).json({
+        success: false,
+        error: buildInvalidCreditSourceMessage(source)
+      });
+    }
+    const creditNote = description || `${normalizedModule || 'hoa'} credit update (${changeType || 'unspecified'})`;
 
     await creditService.updateCreditBalance(
       clientId,
@@ -2093,14 +2108,14 @@ async function updateCreditBalanceFromModule(req, res) {
 
     // Fetch updated balance for response
     const updatedCredit = await creditService.getCreditBalance(clientId, unitId);
-    logDebug(`💰 Credit balance updated by ${module}: Unit ${unitId}, change ${changeAmount} (pesos)`);
+    logDebug(`💰 Credit balance updated by ${normalizedModule || 'hoa'}: Unit ${unitId}, change ${changeAmount} (pesos)`);
     
     res.json({
       success: true,
       previousBalance: updatedCredit.creditBalance - changeAmount,
       newBalance: updatedCredit.creditBalance,
       changeAmount: changeAmount,
-      module
+      module: normalizedModule || 'hoa'
     });
     
   } catch (error) {

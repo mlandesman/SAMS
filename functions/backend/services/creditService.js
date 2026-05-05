@@ -8,6 +8,7 @@ import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { formatCurrency } from '../../shared/utils/currencyUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
+import { isAllowedCreditSource, normalizeCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import admin from 'firebase-admin';
 
@@ -95,6 +96,11 @@ class CreditService {
    */
   async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source) {
     try {
+      if (!isAllowedCreditSource(source)) {
+        throw new Error(buildInvalidCreditSourceMessage(source));
+      }
+      const normalizedSource = normalizeCreditSource(source);
+
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
@@ -124,7 +130,7 @@ class CreditService {
         transactionId,
         notes,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
-        source
+        source: normalizedSource
       });
       
       // Initialize or update history array
@@ -155,7 +161,7 @@ class CreditService {
         parentPath: `clients/${clientId}/units`,
         docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance`,
-        notes: `${notes} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${source} | Transaction: ${transactionId}`
+        notes: `${notes} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${normalizedSource} | Transaction: ${transactionId}`
       });
       
       return {
@@ -252,6 +258,11 @@ class CreditService {
    */
   async addCreditHistoryEntry(clientId, unitId, amount, date, transactionId, note, source) {
     try {
+      if (!isAllowedCreditSource(source)) {
+        throw new Error(buildInvalidCreditSourceMessage(source));
+      }
+      const normalizedSource = normalizeCreditSource(source);
+
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
@@ -282,7 +293,7 @@ class CreditService {
         notes: note,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
         timestamp: new Date(dateMillis).toISOString(), // Use provided date
-        source: source || 'admin'
+        source: normalizedSource
       });
       
       // Initialize or update history array
@@ -322,7 +333,7 @@ class CreditService {
         parentPath: `clients/${clientId}/units`,
         docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance History`,
-        notes: `${note} | Amount: ${formatCurrency(validAmount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId || 'N/A'} | Source: ${source}`
+        notes: `${note} | Amount: ${formatCurrency(validAmount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId || 'N/A'} | Source: ${normalizedSource}`
       });
       
       return {
@@ -593,7 +604,10 @@ class CreditService {
       }
       
       if (updates.source !== undefined) {
-        updatedEntry.source = updates.source;
+        if (!isAllowedCreditSource(updates.source)) {
+          throw new Error(buildInvalidCreditSourceMessage(updates.source));
+        }
+        updatedEntry.source = normalizeCreditSource(updates.source);
       }
       
       // Replace entry in history
