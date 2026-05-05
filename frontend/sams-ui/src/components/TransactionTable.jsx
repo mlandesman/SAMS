@@ -36,38 +36,23 @@ function clearedTooltip(transaction, t) {
 
 function TransactionTable({ transactions = [], selectedId = null, onSelectTransaction, onDoubleClickTransaction, clientId }) {
   const { isSpanish } = useDesktopLanguage();
-  const { t, language } = useDesktopStrings();
-
-  const dateLocale = language === 'ES' ? 'es-MX' : 'en-US';
-
-  const coerceDate = (dateValue) => {
-    if (!dateValue) return null;
-    const raw = dateValue.ISO_8601 || dateValue.iso || dateValue.timestampValue || dateValue.raw || dateValue;
-    if (typeof raw?.toDate === 'function') {
-      try {
-        return raw.toDate();
-      } catch {
-        return null;
-      }
-    }
-    if (raw?.seconds || raw?._seconds) {
-      const seconds = Number(raw.seconds ?? raw._seconds);
-      return Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
-    }
-    const parsed = new Date(raw);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  };
+  const { t } = useDesktopStrings();
 
   const formatRowDate = (tx) => {
     if (isSpanish) {
       const localized = readDisplayText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
       if (localized) return localized;
     }
-    const dateObj = coerceDate(tx.date) || coerceDate(tx.created);
-    if (dateObj) {
-      return dateObj.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
-    }
-    return readDisplayText(tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display);
+    return readDisplayText(
+      tx.date?.unambiguous_long_date
+      || tx.created?.unambiguous_long_date
+      || tx.date?.display
+      || tx.created?.display
+      || tx.date?.ISO_8601
+      || tx.created?.ISO_8601
+      || tx.date?.iso
+      || tx.created?.iso
+    );
   };
   
   // Helper function to determine display based on amount sign

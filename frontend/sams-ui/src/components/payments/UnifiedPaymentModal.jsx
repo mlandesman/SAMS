@@ -218,11 +218,14 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       
       setClientAccounts(validAccounts);
       
-      // Default to Scotiabank account
-      const scotiabankAccount = validAccounts.find(acc => 
-        acc.name.toLowerCase().includes('scotiabank') || acc.name.toLowerCase().includes('scotia')
+      // Default to canonical bank account used by payment intake flow.
+      const defaultBankAccount = validAccounts.find(acc => acc.id === 'bank-001');
+      const scotiabankAccount = validAccounts.find(
+        acc => acc.name.toLowerCase().includes('scotiabank') || acc.name.toLowerCase().includes('scotia')
       );
-      if (scotiabankAccount) {
+      if (defaultBankAccount) {
+        setAccountToCredit(defaultBankAccount);
+      } else if (scotiabankAccount) {
         setAccountToCredit(scotiabankAccount);
       } else if (validAccounts.length > 0) {
         setAccountToCredit(validAccounts[0]);
