@@ -211,6 +211,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
               required
             >
               <option value="admin">admin</option>
+              <option value="correction">correction</option>
               <option value="reconciliation">reconciliation</option>
               <option value="running_balance_computation">running_balance_computation</option>
               <option value="unifiedPayment">unifiedPayment</option>

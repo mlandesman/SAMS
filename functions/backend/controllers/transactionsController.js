@@ -701,24 +701,29 @@ async function updateTransaction(clientId, txnId, newData) {
     if (newData.date !== undefined) {
       const normalizeDateKey = (value) => {
         if (!value) return '';
+        const asCancunDateKey = (dateLike) => {
+          const formatted = dateService.formatForFrontend(dateLike);
+          return typeof formatted?.ISO_8601 === 'string' ? formatted.ISO_8601 : '';
+        };
         if (typeof value?.toDate === 'function') {
           const d = value.toDate();
-          return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+          return Number.isNaN(d.getTime()) ? '' : asCancunDateKey(d);
         }
         const sec = value?.seconds ?? value?._seconds;
         if (sec != null) {
-          const d = admin.firestore.Timestamp.fromMillis(Number(sec) * 1000).toDate();
-          return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+          const ts = admin.firestore.Timestamp.fromMillis(Number(sec) * 1000);
+          return asCancunDateKey(ts);
         }
         if (typeof value === 'string') {
-          const parsed = dateService.parseFromFrontend(value);
-          const parsedDate = typeof parsed?.toDate === 'function' ? parsed.toDate() : null;
-          return parsedDate && !Number.isNaN(parsedDate.getTime())
-            ? parsedDate.toISOString().slice(0, 10)
-            : '';
+          try {
+            const parsed = dateService.parseFromFrontend(value);
+            return asCancunDateKey(parsed);
+          } catch {
+            return '';
+          }
         }
         if (value instanceof Date) {
-          return Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+          return Number.isNaN(value.getTime()) ? '' : asCancunDateKey(value);
         }
         return '';
       };
