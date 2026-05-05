@@ -204,27 +204,49 @@ export async function bulkSendStatementEmails(clientId, fiscalYear = null, onPro
     if (prependEn) body.prependEn = prependEn;
     if (prependEs) body.prependEs = prependEs;
 
-    // Start async bulk email job (server returns quickly with 202 Accepted).
-    const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/email`, {
-      method: 'POST',
-      headers,
-      credentials: 'include',
-      body: JSON.stringify(body)
-    });
+    let kickoffHadAmbiguousFailure = false;
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    // Start async bulk email job. If gateway/network fails, poll once before surfacing error.
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/email`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        if (response.status >= 500) {
+          kickoffHadAmbiguousFailure = true;
+          console.warn('⚠️ Bulk email kickoff returned server error; checking progress before failing:', message);
+        } else {
+          throw new Error(message);
+        }
+      }
+    } catch (kickoffError) {
+      kickoffHadAmbiguousFailure = true;
+      console.warn('⚠️ Bulk email kickoff request failed; checking progress before failing:', kickoffError);
     }
 
     // Poll until the job reaches a terminal state.
     const maxAttempts = 60 * 60; // 60 minutes at 1s interval
+    let noProgressCount = 0;
+    const maxNoProgressWhenKickoffAmbiguous = 45; // 45 seconds
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, 1000));
       // eslint-disable-next-line no-await-in-loop
       const progress = await getBulkEmailProgress(clientId);
-      if (!progress) continue;
+      if (!progress) {
+        noProgressCount += 1;
+        if (kickoffHadAmbiguousFailure && noProgressCount >= maxNoProgressWhenKickoffAmbiguous) {
+          throw new Error('Bulk email could not be confirmed after a timeout/server error. Please retry.');
+        }
+        continue;
+      }
+      noProgressCount = 0;
 
       if (onProgress) {
         onProgress({

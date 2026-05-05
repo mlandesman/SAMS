@@ -1018,7 +1018,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             {bulkProgress && (
               <div style={{ marginTop: '1rem', textAlign: 'center', color: '#666' }}>
                 <p style={{ fontSize: '0.9rem', color: '#888' }}>
-                  Completed: {bulkProgress.generated || 0} | Failed: {bulkProgress.failed || 0} | Remaining: {(bulkProgress.total || 0) - (bulkProgress.current || 0)}
+                  Completed: {bulkProgress.generated || 0} | Failed: {bulkProgress.failed || 0} | Remaining: {Math.max((bulkProgress.total || 0) - ((bulkProgress.generated || 0) + (bulkProgress.failed || 0)), 0)}
                 </p>
               </div>
             )}
@@ -1042,7 +1042,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             {bulkEmailProgress && (
               <div style={{ marginTop: '1rem', textAlign: 'center', color: '#666' }}>
                 <p style={{ fontSize: '0.9rem', color: '#888' }}>
-                  Sent: {bulkEmailProgress.sent || 0} | Skipped: {bulkEmailProgress.skipped || 0} | Failed: {bulkEmailProgress.failed || 0} | Remaining: {(bulkEmailProgress.total || 0) - (bulkEmailProgress.current || 0)}
+                  Sent: {bulkEmailProgress.sent || 0} | Skipped: {bulkEmailProgress.skipped || 0} | Failed: {bulkEmailProgress.failed || 0} | Remaining: {Math.max((bulkEmailProgress.total || 0) - ((bulkEmailProgress.sent || 0) + (bulkEmailProgress.skipped || 0) + (bulkEmailProgress.failed || 0)), 0)}
                 </p>
               </div>
             )}
