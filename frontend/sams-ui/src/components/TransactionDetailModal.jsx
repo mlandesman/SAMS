@@ -142,17 +142,40 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     });
   };
 
-  /**
-   * Raw Firestore timestamps reach the browser as plain objects `{ seconds, nanoseconds }`
-   * (e.g. reconciliation workbench pool). `new Date(thatObject)` is Invalid Date — normalize first.
-   */
-  const coerceToJsDate = (dateValue) => {
-    if (dateValue == null || dateValue === '') return null;
-    if (dateValue instanceof Date) {
-      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
-    }
-    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+  const readDateText = (value) => {
+    if (value == null) return '';
+    return String(value).trim();
+  };
+
+  const coerceCalendarIsoToDate = (isoLike) => {
+    const m = String(isoLike || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const [, year, month, day] = m;
+    const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const parseDisplayDate = (displayValue) => {
+    const m = String(displayValue || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    const [, month, day, year] = m;
+    const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const coerceToDateFromPayload = (dateValue) => {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    if (typeof dateValue === 'number') {
       const d = new Date(dateValue);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof dateValue === 'string') {
+      const s = dateValue.trim();
+      if (!s) return null;
+      const calendar = coerceCalendarIsoToDate(s.slice(0, 10));
+      if (calendar) return calendar;
+      const d = new Date(s);
       return Number.isNaN(d.getTime()) ? null : d;
     }
     if (typeof dateValue.toDate === 'function') {
@@ -163,78 +186,126 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
         return null;
       }
     }
-    const sec = dateValue.seconds ?? dateValue._seconds;
-    if (sec != null && Number.isFinite(Number(sec))) {
+    const sec = dateValue.seconds ?? dateValue._seconds ?? dateValue.timestamp?._seconds ?? null;
+    if (sec != null) {
       const d = new Date(Number(sec) * 1000);
       return Number.isNaN(d.getTime()) ? null : d;
     }
-    if (dateValue.timestamp != null) return coerceToJsDate(dateValue.timestamp);
-    if (dateValue.timestampValue != null) return coerceToJsDate(dateValue.timestampValue);
+    const nestedDisplay = readDateText(dateValue.display);
+    if (nestedDisplay) {
+      const parsed = parseDisplayDate(nestedDisplay);
+      if (parsed) return parsed;
+    }
+    const nestedIso = readDateText(dateValue.ISO_8601) || readDateText(dateValue.iso);
+    if (nestedIso) {
+      const parsed = coerceCalendarIsoToDate(nestedIso.slice(0, 10));
+      if (parsed) return parsed;
+    }
+    if (dateValue.timestamp) return coerceToDateFromPayload(dateValue.timestamp);
+    if (dateValue.timestampValue) return coerceToDateFromPayload(dateValue.timestampValue);
     return null;
   };
 
-  // Format date for display - enriched API shapes + raw Firestore JSON
+  const formatLocalizedSpanishDate = (dateValue) => {
+    const localized = readDateText(dateValue?.displayLocalized);
+    if (localized) return localized;
+    const parsed = coerceToDateFromPayload(dateValue);
+    if (!parsed) return '';
+    return parsed.toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Cancun'
+    });
+  };
+
+  const formatLocalizedDate = (dateValue) => {
+    const parsed = coerceToDateFromPayload(dateValue);
+    if (!parsed) return '';
+    return parsed.toLocaleDateString(language === 'ES' ? 'es-MX' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Cancun'
+    });
+  };
+
+  const getDateFromTransactionId = (transactionId) => {
+    const rawId = String(transactionId || '').trim();
+    const match = rawId.match(/^(\d{4})-(\d{2})-(\d{2})_/);
+    if (!match) return null;
+    const [, year, month, day] = match;
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatIsoCalendarDate = (isoDate) => {
+    const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return '';
+    const [, year, month, day] = m;
+    const safeDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    if (Number.isNaN(safeDate.getTime())) return '';
+    return safeDate.toLocaleDateString(language === 'ES' ? 'es-MX' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Cancun'
+    });
+  };
+
+  // Format date for display using backend DateService payload (no client-side reparsing).
   const formatDate = (dateValue) => {
     if (!dateValue) return t('tx.detail.na');
 
-    const locale = language === 'ES' ? 'es-MX' : 'en-US';
-
-    if (isSpanish && dateValue?.displayLocalized) {
-      return dateValue.displayLocalized;
+    if (typeof dateValue === 'string') {
+      const calendar = dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
+      if (isSpanish) {
+        const localized = formatLocalizedSpanishDate(calendar);
+        if (localized) return localized;
+      }
+      const localized = formatLocalizedDate(calendar);
+      if (localized) return localized;
+      return calendar;
     }
 
-    if (dateValue?.display) {
-      const [month, day, year] = String(dateValue.display).split('/');
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const mi = parseInt(month, 10);
-      if (monthNames[mi - 1] && year) {
-        const parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-        if (!Number.isNaN(parsed.getTime())) {
-          return parsed.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+    if (isSpanish) {
+      const localized = formatLocalizedSpanishDate(dateValue);
+      if (localized) return localized;
+    }
+
+    const canonicalDisplay = readDateText(dateValue?.unambiguous_long_date)
+      || readDateText(dateValue?.display);
+
+    if (canonicalDisplay) {
+      if (!isSpanish) {
+        const parsedDisplay = parseDisplayDate(canonicalDisplay);
+        if (parsedDisplay) {
+          return parsedDisplay.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Cancun'
+          });
         }
       }
+      return canonicalDisplay;
     }
 
-    if (dateValue?.unambiguous_long_date) {
-      if (!isSpanish) return dateValue.unambiguous_long_date;
-      const dateObj = coerceToJsDate(dateValue);
-      if (dateObj) {
-        return dateObj.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
-      }
-      // Sparse payloads may only carry unambiguous_long_date; never drop date display in ES mode.
-      return dateValue.unambiguous_long_date;
-    }
+    const localized = formatLocalizedDate(dateValue);
+    if (localized) return localized;
 
-    if (dateValue?.timestamp) {
-      const inner = coerceToJsDate(dateValue.timestamp);
-      if (inner) {
-        return inner.toLocaleDateString(locale, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-      }
-    }
+    if (dateValue?.timestamp) return formatDate(dateValue.timestamp);
+    if (dateValue?.timestampValue) return formatDate(dateValue.timestampValue);
+    return t('tx.detail.na');
+  };
 
-    if (dateValue?.ISO_8601 || dateValue?.iso) {
-      const fromIso = coerceToJsDate(dateValue?.ISO_8601 || dateValue?.iso);
-      if (fromIso) {
-        return fromIso.toLocaleDateString(locale, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-      }
-    }
+  const getTransactionDateDisplay = () => {
+    const transactionDateDisplay = formatDate(transaction?.date);
+    if (transactionDateDisplay && transactionDateDisplay !== t('tx.detail.na')) return transactionDateDisplay;
 
-    const dateObj = coerceToJsDate(dateValue);
-    if (!dateObj) return t('tx.detail.na');
-
-    return dateObj.toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const idDate = getDateFromTransactionId(transaction?.id);
+    const idDateDisplay = formatIsoCalendarDate(idDate);
+    if (idDateDisplay) return idDateDisplay;
+    return t('tx.detail.na');
   };
 
   // Format amount for display (convert cents to dollars)
@@ -279,7 +350,7 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             
             <div className="detail-row">
               <label>{t('tx.detail.date')}:</label>
-              <span>{formatDate(transaction.date)}</span>
+              <span>{getTransactionDateDisplay()}</span>
             </div>
             
             <div className="detail-row">

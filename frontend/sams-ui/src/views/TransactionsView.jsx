@@ -13,7 +13,7 @@ import { clientAPI } from '../api/client';
 import { fetchTransactions } from '../utils/fetchTransactions';
 import { getClientAccountBalances, clearAccountsCache } from '../utils/clientAccounts';
 import { recalculateClientBalances } from '../utils/balanceRecalculation';
-import { getDateRangeForFilter, getMexicoDateString, getMexicoDate } from '../utils/timezone';
+import { formatDateInMexico, getDateRangeForFilter, getMexicoDateString, getMexicoDate } from '../utils/timezone';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import FilterSwitchModal from '../components/FilterSwitchModal';
 import { useClient } from '../context/ClientContext';
@@ -52,6 +52,11 @@ import { centavosToPesos } from '@shared/utils/currencyUtils';
 import { generateTransactionsPdfHtml } from '../utils/transactionPdfTemplate';
 import reportService from '../services/reportService';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
+import {
+  buildReconciliationPath,
+  getReconciliationSessionContext,
+  saveReconciliationSessionContext
+} from '../utils/reconciliationSessionContext';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
@@ -126,6 +131,7 @@ function TransactionsView() {
   const [historicalBalanceResult, setHistoricalBalanceResult] = useState(null);
   const [historicalBalanceError, setHistoricalBalanceError] = useState('');
   const [historicalBalanceLoading, setHistoricalBalanceLoading] = useState(false);
+  const [reconciliationReturnPath, setReconciliationReturnPath] = useState('/reconciliation');
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
@@ -169,6 +175,16 @@ function TransactionsView() {
   const handleCloseAdvancedFilter = useCallback(() => {
     setShowAdvancedFilterModal(false);
   }, []);
+
+  const clearLocationStateKeys = useCallback((keys = []) => {
+    const currentState = location.state;
+    if (!currentState || typeof currentState !== 'object') return;
+    const nextState = { ...currentState };
+    Array.from(new Set(keys)).forEach((key) => {
+      delete nextState[key];
+    });
+    navigate('.', { replace: true, state: nextState });
+  }, [location.state, navigate]);
 
   // Handler for generating digital receipts
   const handleGenerateReceipt = useCallback(async () => {
@@ -1381,12 +1397,12 @@ function TransactionsView() {
         const timestamp = dateValue.timestamp._seconds 
           ? new Date(dateValue.timestamp._seconds * 1000)
           : new Date(dateValue.timestamp);
-        return timestamp.toISOString().split('T')[0];
+        return formatDateInMexico(timestamp);
       }
       if (dateValue.iso) {
         return dateValue.iso.split('T')[0];
       }
-      return new Date(dateValue).toISOString().split('T')[0];
+      return formatDateInMexico(dateValue) || '';
     };
     
     const rows = filteredTransactions.map(tx => {
@@ -1472,23 +1488,49 @@ function TransactionsView() {
     }
   }, [filteredTransactions, selectedClient, currentDateRange, advancedFilters, showError]);
   
-  // Handle navigation state for opening unified payment from other views
+  // Consume all one-shot navigation state in a single pass and clear every consumed key
+  // together. Reconciliation return keys are consumed here too so the cleanup `navigate`
+  // does not re-trigger this effect with the same incoming context on the next render.
   useEffect(() => {
+    const clientId = selectedClient?.id;
+    if (!clientId) {
+      setReconciliationReturnPath('/reconciliation');
+      return;
+    }
+
+    const keysToClear = [];
+
     if (location.state?.openUnifiedPayment) {
       setShowUnifiedPaymentModal(true);
       setSelectedUnitForPayment(location.state.unitId);
-      // Clear state to prevent reopening on refresh
-      navigate('.', { replace: true, state: {} });
+      keysToClear.push('openUnifiedPayment', 'unitId');
     }
-  }, [location.state, navigate]);
 
-  // Highlight a transaction row when navigated from bank reconciliation (or similar)
-  useEffect(() => {
     const hid = location.state?.highlightTransactionId;
-    if (!hid) return;
-    setTransactionToFind(hid);
-    navigate('.', { replace: true, state: {} });
-  }, [location.state, navigate]);
+    if (hid) {
+      setTransactionToFind(hid);
+      keysToClear.push('highlightTransactionId');
+    }
+
+    const stateSessionId = String(location.state?.reconciliationReturnSessionId || '').trim();
+    const stateClientId = String(location.state?.reconciliationReturnClientId || '').trim();
+    if (stateSessionId && stateClientId === clientId) {
+      saveReconciliationSessionContext(clientId, stateSessionId);
+      setReconciliationReturnPath(buildReconciliationPath(stateSessionId));
+      keysToClear.push(
+        'reconciliationReturnSessionId',
+        'reconciliationReturnClientId',
+        'reconciliationReturnPath'
+      );
+    } else {
+      const cachedSessionId = getReconciliationSessionContext(clientId);
+      setReconciliationReturnPath(buildReconciliationPath(cachedSessionId));
+    }
+
+    if (keysToClear.length > 0) {
+      clearLocationStateKeys(keysToClear);
+    }
+  }, [location.state, selectedClient?.id, clearLocationStateKeys]);
 
   return (
     <div className="view-container">
@@ -1557,7 +1599,7 @@ function TransactionsView() {
               <FontAwesomeIcon icon={faCheckDouble} />
               <span>{t('tx.quickBalanceAdjustment')}</span>
             </button>
-            <button className="action-item" onClick={() => navigate('/reconciliation')}>
+            <button className="action-item" onClick={() => navigate(reconciliationReturnPath)}>
               <FontAwesomeIcon icon={faFileInvoice} />
               <span>{t('tx.bankStatementReconciliation')}</span>
             </button>
@@ -1776,13 +1818,25 @@ function TransactionsView() {
           initialData={selectedTransaction ? (() => {
             const extractDate = (dateField) => {
               if (!dateField) return '';
-              // Handle formatted date from API
-              if (dateField.iso) return dateField.iso.split('T')[0];
-              if (dateField.timestamp?._seconds) return new Date(dateField.timestamp._seconds * 1000).toISOString().split('T')[0];
-              if (dateField.toDate) return dateField.toDate().toISOString().split('T')[0];
-              if (dateField.timestampValue) return new Date(dateField.timestampValue).toISOString().split('T')[0];
-              if (dateField._seconds) return new Date(dateField._seconds * 1000).toISOString().split('T')[0];
-              return new Date(dateField).toISOString().split('T')[0];
+              if (typeof dateField === 'string') {
+                const s = dateField.trim();
+                const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (isoMatch) return isoMatch[1];
+              }
+              if (dateField.ISO_8601) return String(dateField.ISO_8601).slice(0, 10);
+              if (dateField.iso) return String(dateField.iso).slice(0, 10);
+              if (dateField.display) {
+                const m = String(dateField.display).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) {
+                  const [, month, day, year] = m;
+                  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                }
+              }
+              if (dateField.timestamp?._seconds) return formatDateInMexico(new Date(dateField.timestamp._seconds * 1000)) || '';
+              if (dateField.toDate) return formatDateInMexico(dateField.toDate()) || '';
+              if (dateField.timestampValue) return formatDateInMexico(dateField.timestampValue) || '';
+              if (dateField._seconds) return formatDateInMexico(new Date(dateField._seconds * 1000)) || '';
+              return formatDateInMexico(dateField) || '';
             };
             
             const extractAmount = (amountField, preserveSign = false) => {
