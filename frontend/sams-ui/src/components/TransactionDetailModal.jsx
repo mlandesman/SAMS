@@ -258,16 +258,29 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
 
     if (canonicalDisplay) return canonicalDisplay;
 
+    const parsed = coerceToDateFromPayload(dateValue);
+    if (parsed) {
+      return parsed.toLocaleDateString(language === 'ES' ? 'es-MX' : 'en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Cancun'
+      });
+    }
+
     if (dateValue?.timestamp) return formatDate(dateValue.timestamp);
     if (dateValue?.timestampValue) return formatDate(dateValue.timestampValue);
     return t('tx.detail.na');
   };
 
   const getTransactionDateDisplay = () => {
+    const transactionDateDisplay = formatDate(transaction?.date);
+    if (transactionDateDisplay && transactionDateDisplay !== t('tx.detail.na')) return transactionDateDisplay;
+
     const idDate = getDateFromTransactionId(transaction?.id);
     const idDateDisplay = formatIsoCalendarDate(idDate);
     if (idDateDisplay) return idDateDisplay;
-    return formatDate(transaction?.date);
+    return t('tx.detail.na');
   };
 
   // Format amount for display (convert cents to dollars)
