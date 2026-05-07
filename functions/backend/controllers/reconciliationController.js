@@ -21,6 +21,7 @@ import {
 import { generateAndUploadReconciliationReport } from '../services/reconciliationReportService.js';
 import { getStorageBucketName } from '../utils/storageBucketName.js';
 import { fetchTransactionsForMatching } from '../services/reconciliationMatchingPool.js';
+import { toIsoDateOrNull } from '../utils/dateIso.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 const TOLERANCE = 0.01;
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -44,22 +45,6 @@ function summarizeBankRows(rows, limit = 8) {
   }));
 }
 
-function toIsoDateOrNull(value) {
-  if (!value) return null;
-  if (typeof value === 'string') {
-    const s = value.trim();
-    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (m) return m[1];
-  }
-  try {
-    const formatted = dateService.formatForFrontend(value);
-    const iso = formatted?.ISO_8601 || null;
-    return isIsoDateString(iso) ? iso : null;
-  } catch {
-    return null;
-  }
-}
-
 function formatUtcDate(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   const year = String(date.getUTCFullYear());
@@ -72,14 +57,14 @@ function txnDateIso(txn) {
   const d = txn?.date;
   if (d == null) return null;
   if (typeof d?.toDate === 'function') {
-    return toIsoDateOrNull(d.toDate());
+    return toIsoDateOrNull(d.toDate(), dateService);
   }
   const sec = d?.seconds ?? d?._seconds;
   if (sec != null) {
-    return toIsoDateOrNull(new Date(Number(sec) * 1000));
+    return toIsoDateOrNull(new Date(Number(sec) * 1000), dateService);
   }
   if (typeof d === 'string' || typeof d === 'number') {
-    return toIsoDateOrNull(d);
+    return toIsoDateOrNull(d, dateService);
   }
   return null;
 }
@@ -1308,7 +1293,7 @@ export async function getReconciliationHealth(clientId, options = {}) {
 
   const db = await getDb();
   const txnsRef = db.collection(`clients/${clientId}/transactions`);
-  const nowIso = toIsoDateOrNull(getNow());
+  const nowIso = toIsoDateOrNull(getNow(), dateService);
   const reconRef = db.collection(`clients/${clientId}/reconciliations`);
 
   const latestAcceptedSnap = await reconRef
@@ -1320,11 +1305,11 @@ export async function getReconciliationHealth(clientId, options = {}) {
   if (!latestAcceptedSnap.empty) {
     const acceptedAt = latestAcceptedSnap.docs[0].data()?.acceptedAt || null;
     if (acceptedAt?.toDate && typeof acceptedAt.toDate === 'function') {
-      latestReconciliationDate = toIsoDateOrNull(acceptedAt.toDate());
+      latestReconciliationDate = toIsoDateOrNull(acceptedAt.toDate(), dateService);
     } else {
       const sec = acceptedAt?.seconds ?? acceptedAt?._seconds;
       if (sec != null) {
-        latestReconciliationDate = toIsoDateOrNull(new Date(Number(sec) * 1000));
+        latestReconciliationDate = toIsoDateOrNull(new Date(Number(sec) * 1000), dateService);
       }
     }
   }
@@ -1347,11 +1332,10 @@ export async function getReconciliationHealth(clientId, options = {}) {
   const staleCutoffIso = latestReconciliationDate ? addDaysToIso(latestReconciliationDate, -staleDays) : null;
 
   let cursor = null;
-  // Full scan of uncleared bank rows only (typically small after normalization).
+  // Full scan of bank rows so legacy docs without clearedDate are included.
   while (true) {
     let q = txnsRef
       .where('accountType', '==', 'bank')
-      .where('clearedDate', '==', null)
       .orderBy('__name__')
       .limit(500);
     if (cursor) q = q.startAfter(cursor);
@@ -1360,6 +1344,8 @@ export async function getReconciliationHealth(clientId, options = {}) {
 
     for (const doc of snap.docs) {
       const data = doc.data() || {};
+      const isUncleared = data.clearedDate == null || String(data.clearedDate).trim() === '';
+      if (!isUncleared) continue;
       unclearedBankCount += 1;
 
       const txIso = txnDateIso(data);

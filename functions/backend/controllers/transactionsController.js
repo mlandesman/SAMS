@@ -36,6 +36,7 @@ import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { translateNoteToSpanishDeterministicFirst } from '../utils/notesLocalization.js';
+import { toIsoDateOrNull } from '../utils/dateIso.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId } = databaseFieldMappings;
 
@@ -112,21 +113,6 @@ function isCashAccountTransaction(data) {
   return accountId.startsWith('cash-');
 }
 
-function toIsoDateOrNull(value) {
-  if (!value) return null;
-  if (typeof value === 'string') {
-    const s = value.trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  }
-  try {
-    const formatted = dateService.formatForFrontend(value);
-    return formatted?.ISO_8601 || null;
-  } catch {
-    return null;
-  }
-}
-
 function resolveCreateClearedDate(mappedData) {
   if (hasOwnProperty(mappedData, 'clearedDate')) {
     return mappedData.clearedDate ?? null;
@@ -134,7 +120,7 @@ function resolveCreateClearedDate(mappedData) {
   if (!isCashAccountTransaction(mappedData)) {
     return null;
   }
-  return toIsoDateOrNull(mappedData.date) ?? null;
+  return toIsoDateOrNull(mappedData.date, dateService) ?? null;
 }
 
 // Helper function to resolve vendor name to ID
