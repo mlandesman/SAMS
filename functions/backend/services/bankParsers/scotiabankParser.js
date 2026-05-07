@@ -30,6 +30,20 @@ function parseAmount(raw) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+function cleanText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function pickPrimaryDescription({ detail, transactionText, originBank }) {
+  // AVII uses Leyenda 2 for human notes; prefer it when present.
+  const candidates = [detail, transactionText, originBank];
+  for (const candidate of candidates) {
+    const cleaned = cleanText(candidate);
+    if (cleaned) return cleaned;
+  }
+  return '';
+}
+
 /** Legacy 14-column row: first column CHQ (cheque account line). */
 function isLegacyFormatRow(cols) {
   return cols.length >= 14 && String(cols[0] || '').trim().toUpperCase() === 'CHQ';
@@ -86,6 +100,10 @@ export async function parseScotiabankCSV(fileBuffer) {
       const amount = parseAmount(cols[2]);
       const typeRaw = String(cols[3] || '').trim().toUpperCase();
       const runningBalance = cols[4] !== '' && cols[4] != null ? parseAmount(cols[4]) : null;
+      const transactionText = cleanText(cols[5]);
+      const originBank = cleanText(cols[6]) || null;
+      const detail = cleanText(cols[7]) || null;
+      const primaryDescription = pickPrimaryDescription({ detail, transactionText, originBank });
 
       if (!dateIso) {
         errors.push(`Row ${rowIndex}: invalid date "${cols[0]}"`);
@@ -103,11 +121,11 @@ export async function parseScotiabankCSV(fileBuffer) {
         date: dateIso,
         amount,
         type: typeRaw,
-        description: String(cols[5] || '').trim(),
+        description: primaryDescription,
         referenceNumber,
         runningBalance: Number.isFinite(runningBalance) ? runningBalance : null,
-        originBank: String(cols[6] || '').trim() || null,
-        detail: String(cols[7] || '').trim() || null,
+        originBank,
+        detail,
         source: 'scotiabank_csv'
       });
       continue;
@@ -119,6 +137,10 @@ export async function parseScotiabankCSV(fileBuffer) {
       const amount = parseAmount(cols[6]);
       const typeRaw = String(cols[7] || '').trim().toUpperCase();
       const runningBalance = cols[8] !== '' && cols[8] != null ? parseAmount(cols[8]) : null;
+      const transactionText = cleanText(cols[9]);
+      const originBank = cleanText(cols[10]) || null;
+      const detail = cleanText(cols[11]) || null;
+      const primaryDescription = pickPrimaryDescription({ detail, transactionText, originBank });
 
       if (!dateIso) {
         errors.push(`Row ${rowIndex}: invalid date "${cols[4]}"`);
@@ -140,11 +162,11 @@ export async function parseScotiabankCSV(fileBuffer) {
         date: dateIso,
         amount,
         type: typeRaw,
-        description: String(cols[9] || '').trim(),
+        description: primaryDescription,
         referenceNumber,
         runningBalance: Number.isFinite(runningBalance) ? runningBalance : null,
-        originBank: String(cols[10] || '').trim() || null,
-        detail: String(cols[11] || '').trim() || null,
+        originBank,
+        detail,
         source: 'scotiabank_csv'
       });
       continue;

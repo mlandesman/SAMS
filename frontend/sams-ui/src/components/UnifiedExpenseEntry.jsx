@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../context/ClientContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faArrowLeft, faFile, faFilePdf, faImage } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faArrowLeft, faFile, faFilePdf } from '@fortawesome/free-solid-svg-icons';
 import SplitEntryModal from './transactions/SplitEntryModal';
 import { clientAPI } from '../api/client';
 import { getCurrentUser } from '../firebaseClient';
@@ -32,6 +32,13 @@ function splitAllocationsAlreadyIncludeBankFees(allocations) {
     if (cat === 'Bank: IVA' || notes === 'Bank transfer IVA') hasIvaLine = true;
   }
   return hasFeeLine && hasIvaLine;
+}
+
+function getClientDefaultBankFees(clientId, isBankAccount) {
+  if (!clientId) return Boolean(isBankAccount);
+  if (clientId === 'AVII') return true;
+  if (clientId === 'MTC') return false;
+  return Boolean(isBankAccount);
 }
 
 const UnifiedExpenseEntry = ({ 
@@ -189,27 +196,7 @@ const UnifiedExpenseEntry = ({
   // Handle Split button click
   const handleSplitTransaction = () => {
     if (!isSplitButtonEnabled()) return;
-    
-    // Prepare transaction data for split modal - resolve IDs to names for display
-    const selectedVendor = clientData.vendors.find(v => v.id === formData.vendorId);
-    const selectedAccount = clientData.accounts.find(a => a.id === formData.accountId);
-    const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
-    const selectedUnit = clientData.units.find(u => u.id === formData.unitId);
-    
-    const transactionDataForSplit = {
-      date: formData.date,
-      vendorId: formData.vendorId,
-      vendorName: selectedVendor?.name || '',
-      amount: databaseFieldMappings.dollarsToCents(formData.amount), // Convert to cents
-      accountId: formData.accountId,
-      accountType: selectedAccount?.name || '',
-      paymentMethodId: formData.paymentMethodId,
-      paymentMethod: selectedPaymentMethod?.name || '',
-      unitId: formData.unitId,
-      unit: selectedUnit?.name || '',
-      notes: formData.notes
-    };
-    
+
     setShowSplitModal(true);
   };
 
@@ -657,11 +644,11 @@ const UnifiedExpenseEntry = ({
             ...(defaultAccount && { accountId: defaultAccount.id })
           }));
           
-          // Auto-check bank fees for bank accounts
+          // Apply client-aware bank fee defaults.
           if (defaultAccount) {
             const accountData = rawAccounts.find(a => a.id === defaultAccount.id || a.name === defaultAccount.name);
             const isBankAccount = accountData && accountData.type !== 'cash';
-            setAddBankFees(isBankAccount);
+            setAddBankFees(getClientDefaultBankFees(clientId, isBankAccount));
           }
         }
 
@@ -1036,10 +1023,10 @@ const UnifiedExpenseEntry = ({
                     onChange={(e) => {
                       const newAccountId = e.target.value;
                       setFormData(prev => ({ ...prev, accountId: newAccountId }));
-                      // Auto-check bank fees for bank accounts (type !== 'cash')
+                      // Apply client-aware bank fee defaults when account changes.
                       const selectedAccount = clientData.accounts.find(a => a.id === newAccountId);
                       const isBankAccount = selectedAccount && selectedAccount.type !== 'cash';
-                      setAddBankFees(isBankAccount);
+                      setAddBankFees(getClientDefaultBankFees(clientId, isBankAccount));
                     }}
                     className={fieldErrors.accountId ? 'error' : ''}
                     required

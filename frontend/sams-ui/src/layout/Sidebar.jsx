@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
+import { buildReconciliationPath, getReconciliationSessionContext } from '../utils/reconciliationSessionContext';
 import './Sidebar.css';
 
 // Using the same logo URL you provided
@@ -91,6 +92,12 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   const { samsUser } = useAuth(); // Get user for role checking
   const { language, setLanguage, localizationEnabled } = useDesktopLanguage();
   const { t, menuLabel } = useDesktopStrings();
+  const reconciliationPath = useMemo(() => {
+    const clientId = selectedClient?.id;
+    if (!clientId) return '/reconciliation';
+    const cachedSessionId = getReconciliationSessionContext(clientId);
+    return buildReconciliationPath(cachedSessionId);
+  }, [selectedClient?.id]);
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
   const allMenuItems = useMemo(() => {
@@ -166,18 +173,19 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
           <li className="menu-error">{t('sidebar.errorMenu')}</li>
         ) : (
           menuItems.map((item, index) => {
+            const destination = item.path === '/reconciliation' ? reconciliationPath : item.path;
             // Get the current path from window location
             const currentPath = window.location.pathname;
             // Check if this is the active item - either direct match or path starts with item path
-            const isActive = currentPath === item.path || 
+            const isActive = currentPath === item.path ||
                             (item.path !== '/' && currentPath.startsWith(item.path));
             
             return (
               <li key={index} className={isActive ? 'active' : ''}>
                 <Link
-                  to={item.path}
+                  to={destination}
                   onClick={() => {
-                    console.log(`Navigating to ${item.path}`);
+                    console.log(`Navigating to ${destination}`);
                     onActivityChange(item.activity); // Call onActivityChange
                   }}
                 >
@@ -190,7 +198,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
         {samsUser && isAdmin(samsUser, selectedClient?.id) && (
           <li className={pathname === '/reconciliation' ? 'active' : ''}>
             <Link
-              to="/reconciliation"
+              to={reconciliationPath}
               onClick={() => onActivityChange && onActivityChange('reconciliation')}
             >
               {t('sidebar.reconciliation')}

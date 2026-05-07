@@ -7,6 +7,7 @@ import {
   faBan,
   faEye,
   faEdit,
+  faPlus,
   faClipboardCheck,
   faCoins,
   faFilePdf
@@ -29,9 +30,19 @@ import {
   updateSession,
   resolveException
 } from '../api/reconciliation';
+import { createTransaction } from '../api/transaction';
+import { linkDocumentsToTransaction, uploadDocumentsForTransaction } from '../api/documents';
 import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
+import {
+  buildReconciliationPath,
+  clearReconciliationSessionContext,
+  getReconciliationSessionContext,
+  isResumableReconciliationSession,
+  saveReconciliationSessionContext
+} from '../utils/reconciliationSessionContext';
 import TransactionDetailModal from '../components/TransactionDetailModal';
+import UnifiedExpenseEntry from '../components/UnifiedExpenseEntry';
 import { isAdmin } from '../utils/userRoles';
 import { LoadingSpinner } from '../components/common';
 import ActivityActionBar from '../components/common/ActivityActionBar';
@@ -144,6 +155,33 @@ function formatSessionTimestamp(ts) {
   return '—';
 }
 
+function normalizeBankDescription(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function parseBankRowDate(rowDate) {
+  const raw = String(rowDate || '').trim();
+  const candidate = raw.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : getMexicoDateString();
+}
+
+function centavosToPesosString(value) {
+  const cents = Number(value) || 0;
+  return (Math.abs(cents) / 100).toFixed(2);
+}
+
+function sessionHasManualReconciliationDecisions(session) {
+  const matchMap = Array.isArray(session?.matchMap) ? session.matchMap : [];
+  const hasManualMatch = matchMap.some((m) => {
+    const kind = String(m?.matchType || '').toLowerCase();
+    return kind === 'manual-match' || kind === 'manual-group' || kind === 'manual-justified';
+  });
+  const exclusions = Array.isArray(session?.reconciliationExclusions)
+    ? session.reconciliationExclusions
+    : [];
+  return hasManualMatch || exclusions.length > 0;
+}
+
 export default function ReconciliationView() {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
@@ -188,8 +226,12 @@ export default function ReconciliationView() {
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const [cachedResumeSessionId, setCachedResumeSessionId] = useState('');
   const [expandedHistorySessionId, setExpandedHistorySessionId] = useState('');
   const [historyBusySessionId, setHistoryBusySessionId] = useState('');
+  const [showCreateExpenseModal, setShowCreateExpenseModal] = useState(false);
+  const [createExpenseInitialData, setCreateExpenseInitialData] = useState(null);
+  const [createExpenseSaving, setCreateExpenseSaving] = useState(false);
 
   const canUse = isAdmin(samsUser, clientId);
   const prevClientIdRef = useRef(undefined);
@@ -265,6 +307,19 @@ export default function ReconciliationView() {
     }
   }, [clientId, accountId]);
 
+  const continueHistorySession = useCallback((row) => {
+    const targetSessionId = String(row?.id || '').trim();
+    if (!targetSessionId) return;
+    if (!isResumableReconciliationSession(row)) {
+      setHistoryError('Only Draft/Matching/Reviewing sessions can be continued.');
+      return;
+    }
+    setHistoryError('');
+    setShowHistory(false);
+    setExpandedHistorySessionId('');
+    setSessionParam(targetSessionId);
+  }, [setSessionParam]);
+
   const abandonHistorySession = useCallback(async (row) => {
     const targetSessionId = String(row?.id || '');
     if (!targetSessionId || !clientId) return;
@@ -307,6 +362,28 @@ export default function ReconciliationView() {
     if (!showHistory || !clientId) return;
     loadHistory();
   }, [showHistory, clientId, loadHistory]);
+
+  useEffect(() => {
+    if (!clientId) {
+      setCachedResumeSessionId('');
+      return;
+    }
+    if (sessionId) {
+      setCachedResumeSessionId('');
+      return;
+    }
+    setCachedResumeSessionId(getReconciliationSessionContext(clientId));
+  }, [clientId, sessionId]);
+
+  useEffect(() => {
+    if (!clientId) return;
+    if (!sessionId) return;
+    if (wb?.session?.accepted) {
+      clearReconciliationSessionContext(clientId);
+      return;
+    }
+    saveReconciliationSessionContext(clientId, sessionId);
+  }, [clientId, sessionId, wb?.session?.accepted]);
 
   const bankRowById = useMemo(() => {
     const m = {};
@@ -405,6 +482,37 @@ export default function ReconciliationView() {
     txnTypesOk,
     selectedBankIds.length,
     selectedTxnIds.length,
+    selectionGapCentavos
+  ]);
+
+  const gapAdjustmentTooltip = useMemo(() => {
+    const usage =
+      'Creates a Bank Adjustments line for the current difference and then attempts to auto-match your selected rows. Justification is required.';
+    if (wb?.session?.accepted) {
+      return `Disabled: session is already accepted. ${usage}`;
+    }
+    if (selectedBankIds.length === 0 || selectedTxnIds.length === 0) {
+      return `Disabled: select at least one bank line and one SAMS line. ${usage}`;
+    }
+    if (!bankTypeUnified) {
+      return `Disabled: selected bank lines must all be the same type (all CARGO or all ABONO). ${usage}`;
+    }
+    if (!txnTypesOk) {
+      return `Disabled: selected SAMS rows are not type-compatible with the selected bank type (${bankTypeUnified || 'unknown'}). ${usage}`;
+    }
+    if (selectionGapCentavos == null) {
+      return `Disabled: selection totals are not ready for comparison. ${usage}`;
+    }
+    if (selectionGapCentavos === 0) {
+      return `Disabled: difference is $0.00. Use Match selected instead. ${usage}`;
+    }
+    return usage;
+  }, [
+    wb?.session?.accepted,
+    selectedBankIds.length,
+    selectedTxnIds.length,
+    bankTypeUnified,
+    txnTypesOk,
     selectionGapCentavos
   ]);
 
@@ -591,6 +699,93 @@ export default function ReconciliationView() {
     }
   };
 
+  const openCreateExpenseFromBankRow = useCallback((row) => {
+    if (!row) return;
+    if (!accountId && !wb?.session?.accountId) {
+      setError('Select a reconciliation account before creating an expense from bank lines.');
+      return;
+    }
+    const prefAccountId = wb?.session?.accountId || accountId;
+    setCreateExpenseInitialData({
+      date: parseBankRowDate(row.date),
+      amount: centavosToPesosString(row.amount),
+      notes: normalizeBankDescription(row.description),
+      accountId: prefAccountId,
+      type: 'expense'
+    });
+    setShowCreateExpenseModal(true);
+  }, [accountId, wb?.session?.accountId]);
+
+  const handleCreateExpenseFromRecon = useCallback(async (transactionData) => {
+    if (!clientId) {
+      throw new Error('No client selected.');
+    }
+    if (!sessionId) {
+      throw new Error('No active reconciliation session.');
+    }
+    setCreateExpenseSaving(true);
+    setError('');
+    try {
+      const normalizedData = { ...transactionData };
+      const existingDocIds = [];
+      const filesToUpload = [];
+      if (Array.isArray(normalizedData.documents)) {
+        normalizedData.documents.forEach((doc) => {
+          if (typeof doc === 'string' && doc.trim()) {
+            existingDocIds.push(doc.trim());
+            return;
+          }
+          if (doc && typeof doc === 'object') {
+            if (doc.id) existingDocIds.push(String(doc.id));
+            if (doc.file instanceof File) filesToUpload.push(doc.file);
+          }
+        });
+      }
+
+      let uploadedDocuments = [];
+      if (filesToUpload.length > 0) {
+        uploadedDocuments = await uploadDocumentsForTransaction(
+          clientId,
+          filesToUpload,
+          'receipt',
+          'expense_receipt'
+        );
+      }
+      normalizedData.documents = [
+        ...existingDocIds,
+        ...uploadedDocuments.map((doc) => doc.id)
+      ];
+
+      const transactionId = await createTransaction(clientId, normalizedData);
+      if (uploadedDocuments.length > 0 && transactionId) {
+        await linkDocumentsToTransaction(
+          clientId,
+          uploadedDocuments.map((doc) => doc.id),
+          transactionId
+        );
+      }
+
+      setShowCreateExpenseModal(false);
+      setCreateExpenseInitialData(null);
+
+      // First refresh after transaction create so we evaluate the latest session state.
+      const latestWorkbench = await getWorkbench(clientId, sessionId);
+      const shouldAutoRematch = !sessionHasManualReconciliationDecisions(latestWorkbench?.session);
+
+      // Safe automation: only re-run matcher if session is still auto-only (no manual decisions/exclusions).
+      if (shouldAutoRematch) {
+        await runMatching(clientId, sessionId);
+      }
+
+      await loadWorkbench();
+    } catch (e) {
+      setError(e.message || 'Failed to create expense from bank row.');
+      throw e;
+    } finally {
+      setCreateExpenseSaving(false);
+    }
+  }, [clientId, loadWorkbench, sessionId]);
+
   if (!selectedClient) {
     return <p className="recon-page-muted">Select a client to use bank reconciliation.</p>;
   }
@@ -643,6 +838,8 @@ export default function ReconciliationView() {
             setShowHistory(false);
             setExpandedHistorySessionId('');
             setSessionParam('');
+            clearReconciliationSessionContext(clientId);
+            setCachedResumeSessionId('');
             setWb(null);
           }}
           disabled={busy}
@@ -679,7 +876,7 @@ export default function ReconciliationView() {
         <section className="recon-history-panel">
           <h2>Reconciliation history</h2>
           <p className="recon-hint">
-            Sessions for this client. Open any row to continue work, or use artifact links to retrieve statement/bank/report files.
+            Sessions for this client. Use Continue for Draft/Matching/Reviewing sessions, or use artifact links to retrieve statement, bank, and report files.
           </p>
           {historyError && <div className="recon-page-error">{historyError}</div>}
           <div className="recon-table-scroll recon-history-scroll">
@@ -721,6 +918,7 @@ export default function ReconciliationView() {
                     const historyActionInFlight = Boolean(historyBusySessionId);
                     const statusValue = row.accepted ? 'accepted' : (row.status || 'draft');
                     const statusClass = String(statusValue).toLowerCase().replace(/\s+/g, '-');
+                    const canContinue = isResumableReconciliationSession(row);
                     return (
                       <React.Fragment key={sessionDocId}>
                         <tr>
@@ -746,6 +944,16 @@ export default function ReconciliationView() {
                           </td>
                           <td className="recon-history-col-actions">
                             <div className="recon-history-actions">
+                              {canContinue && (
+                                <button
+                                  type="button"
+                                  className="recon-primary-btn"
+                                  disabled={historyActionInFlight}
+                                  onClick={() => continueHistorySession(row)}
+                                >
+                                  Continue
+                                </button>
+                              )}
                               {!row.accepted && (
                                 <button
                                   type="button"
@@ -796,6 +1004,30 @@ export default function ReconciliationView() {
 
       {!showHistory && !sessionId && (
         <section className="recon-setup-panel">
+          {cachedResumeSessionId && (
+            <div className="recon-automatch-banner" role="status" style={{ marginBottom: '1rem' }}>
+              <strong>Resume available:</strong> an in-progress reconciliation session was found for this client.
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="recon-primary-btn"
+                  onClick={() => setSessionParam(cachedResumeSessionId)}
+                >
+                  Resume last session
+                </button>
+                <button
+                  type="button"
+                  className="recon-secondary-btn"
+                  onClick={() => {
+                    clearReconciliationSessionContext(clientId);
+                    setCachedResumeSessionId('');
+                  }}
+                >
+                  Start new session
+                </button>
+              </div>
+            </div>
+          )}
           <h2>1. Import &amp; match</h2>
           <div className="recon-form-grid">
             <label>
@@ -967,6 +1199,17 @@ export default function ReconciliationView() {
                             <button
                               type="button"
                               className="recon-icon-btn"
+                              title="Create expense from this bank line"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openCreateExpenseFromBankRow(row);
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faPlus} />
+                            </button>
+                            <button
+                              type="button"
+                              className="recon-icon-btn"
                               title="Exclude"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1003,30 +1246,23 @@ export default function ReconciliationView() {
                   >
                     <FontAwesomeIcon icon={faLink} /> Match selected
                   </button>
-                  <button
-                    type="button"
-                    className="recon-secondary-btn"
-                    disabled={busy || !canApplyGapAdjustment}
-                    title={
-                      canApplyGapAdjustment
-                        ? 'Create a Bank Adjustments line for the current gap, then automatically match your selected bank and SAMS rows including that new line. Requires justification.'
-                        : wb?.session?.accepted
-                          ? 'Session is already accepted.'
-                          : !bankTypeUnified || selectedBankIds.length === 0 || selectedTxnIds.length === 0
-                            ? 'Select bank and SAMS lines of a single type to compare totals.'
-                            : !txnTypesOk
-                              ? 'All selected SAMS rows must be valid for the bank type (CARGO or ABONO).'
-                              : selectionGapCentavos === 0
-                                ? 'Difference is zero — use Match selected.'
-                                : 'Cannot create adjustment for this selection.'
-                    }
-                    onClick={() => {
-                      setGapAdjustJustification('');
-                      setGapAdjustModalOpen(true);
-                    }}
+                  <span
+                    title={busy || !canApplyGapAdjustment ? gapAdjustmentTooltip : undefined}
+                    style={{ display: 'inline-block' }}
                   >
-                    <FontAwesomeIcon icon={faCoins} /> Apply bank adjustment
-                  </button>
+                    <button
+                      type="button"
+                      className="recon-secondary-btn"
+                      disabled={busy || !canApplyGapAdjustment}
+                      title={canApplyGapAdjustment ? gapAdjustmentTooltip : undefined}
+                      onClick={() => {
+                        setGapAdjustJustification('');
+                        setGapAdjustModalOpen(true);
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faCoins} /> Apply bank adjustment
+                    </button>
+                  </span>
                   <button
                     type="button"
                     className="recon-secondary-btn"
@@ -1155,7 +1391,14 @@ export default function ReconciliationView() {
                               title="Edit in Transactions"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate('/transactions', { state: { highlightTransactionId: t.id } });
+                                navigate('/transactions', {
+                                  state: {
+                                    highlightTransactionId: t.id,
+                                    reconciliationReturnSessionId: sessionId,
+                                    reconciliationReturnClientId: clientId,
+                                    reconciliationReturnPath: buildReconciliationPath(sessionId)
+                                  }
+                                });
                               }}
                             >
                               <FontAwesomeIcon icon={faEdit} />
@@ -1380,6 +1623,20 @@ export default function ReconciliationView() {
         onClose={() => setViewTxn(null)}
         clientId={clientId}
       />
+      {showCreateExpenseModal && (
+        <UnifiedExpenseEntry
+          mode="modal"
+          isOpen={showCreateExpenseModal}
+          clientId={clientId}
+          initialData={createExpenseInitialData}
+          onClose={() => {
+            if (createExpenseSaving) return;
+            setShowCreateExpenseModal(false);
+            setCreateExpenseInitialData(null);
+          }}
+          onSubmit={handleCreateExpenseFromRecon}
+        />
+      )}
       </div>
     </div>
   );
