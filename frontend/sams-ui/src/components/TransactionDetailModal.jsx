@@ -179,8 +179,12 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
       return Number.isNaN(d.getTime()) ? null : d;
     }
     if (typeof dateValue.toDate === 'function') {
-      const d = dateValue.toDate();
-      return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+      try {
+        const d = dateValue.toDate();
+        return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+      } catch {
+        return null;
+      }
     }
     const sec = dateValue.seconds ?? dateValue._seconds ?? dateValue.timestamp?._seconds ?? null;
     if (sec != null) {
