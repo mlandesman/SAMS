@@ -211,6 +211,17 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     });
   };
 
+  const formatLocalizedDate = (dateValue) => {
+    const parsed = coerceToDateFromPayload(dateValue);
+    if (!parsed) return '';
+    return parsed.toLocaleDateString(language === 'ES' ? 'es-MX' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Cancun'
+    });
+  };
+
   const getDateFromTransactionId = (transactionId) => {
     const rawId = String(transactionId || '').trim();
     const match = rawId.match(/^(\d{4})-(\d{2})-(\d{2})_/);
@@ -243,6 +254,8 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
         const localized = formatLocalizedSpanishDate(calendar);
         if (localized) return localized;
       }
+      const localized = formatLocalizedDate(calendar);
+      if (localized) return localized;
       return calendar;
     }
 
@@ -252,21 +265,12 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     }
 
     const canonicalDisplay = readDateText(dateValue?.unambiguous_long_date)
-      || readDateText(dateValue?.display)
-      || readDateText(dateValue?.ISO_8601)
-      || readDateText(dateValue?.iso);
+      || readDateText(dateValue?.display);
 
     if (canonicalDisplay) return canonicalDisplay;
 
-    const parsed = coerceToDateFromPayload(dateValue);
-    if (parsed) {
-      return parsed.toLocaleDateString(language === 'ES' ? 'es-MX' : 'en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Cancun'
-      });
-    }
+    const localized = formatLocalizedDate(dateValue);
+    if (localized) return localized;
 
     if (dateValue?.timestamp) return formatDate(dateValue.timestamp);
     if (dateValue?.timestampValue) return formatDate(dateValue.timestampValue);
