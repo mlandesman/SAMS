@@ -105,6 +105,38 @@ function formatDateField(dateValue) {
   }
 }
 
+function isCashAccountTransaction(data) {
+  const accountType = String(data?.accountType || '').trim().toLowerCase();
+  if (accountType === 'cash') return true;
+  const accountId = String(data?.accountId || '').trim().toLowerCase();
+  return accountId.startsWith('cash-');
+}
+
+function toIsoDateOrNull(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  }
+  try {
+    const formatted = dateService.formatForFrontend(value);
+    return formatted?.ISO_8601 || null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCreateClearedDate(mappedData) {
+  if (hasOwnProperty(mappedData, 'clearedDate')) {
+    return mappedData.clearedDate ?? null;
+  }
+  if (!isCashAccountTransaction(mappedData)) {
+    return null;
+  }
+  return toIsoDateOrNull(mappedData.date) ?? null;
+}
+
 // Helper function to resolve vendor name to ID
 async function resolveVendorId(clientId, vendorName) {
   if (!vendorName) return null;
@@ -565,8 +597,10 @@ async function createTransaction(clientId, data, options = {}) {
       logDebug('💾 [BATCH MODE] Adding transaction to batch:', txnId);
       
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const resolvedClearedDate = resolveCreateClearedDate(mappedData);
       const transactionData = {
         ...mappedData,
+        clearedDate: resolvedClearedDate,
         documents: mappedData.documents || []
       };
       
@@ -607,8 +641,10 @@ async function createTransaction(clientId, data, options = {}) {
     await db.runTransaction(async (transaction) => {
       // Add the transaction with new ID format
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const resolvedClearedDate = resolveCreateClearedDate(mappedData);
       const transactionData = {
         ...mappedData,
+        clearedDate: resolvedClearedDate,
         documents: mappedData.documents || [] // Use actual documents array from data
       };
       
