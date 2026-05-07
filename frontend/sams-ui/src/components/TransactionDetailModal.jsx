@@ -147,6 +147,70 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     return String(value).trim();
   };
 
+  const coerceCalendarIsoToDate = (isoLike) => {
+    const m = String(isoLike || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const [, year, month, day] = m;
+    const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const parseDisplayDate = (displayValue) => {
+    const m = String(displayValue || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    const [, month, day, year] = m;
+    const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const coerceToDateFromPayload = (dateValue) => {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date) return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    if (typeof dateValue === 'string') {
+      const s = dateValue.trim();
+      if (!s) return null;
+      const calendar = coerceCalendarIsoToDate(s.slice(0, 10));
+      if (calendar) return calendar;
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof dateValue.toDate === 'function') {
+      const d = dateValue.toDate();
+      return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    const sec = dateValue.seconds ?? dateValue._seconds ?? dateValue.timestamp?._seconds ?? null;
+    if (sec != null) {
+      const d = new Date(Number(sec) * 1000);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const nestedDisplay = readDateText(dateValue.display);
+    if (nestedDisplay) {
+      const parsed = parseDisplayDate(nestedDisplay);
+      if (parsed) return parsed;
+    }
+    const nestedIso = readDateText(dateValue.ISO_8601) || readDateText(dateValue.iso);
+    if (nestedIso) {
+      const parsed = coerceCalendarIsoToDate(nestedIso.slice(0, 10));
+      if (parsed) return parsed;
+    }
+    if (dateValue.timestamp) return coerceToDateFromPayload(dateValue.timestamp);
+    if (dateValue.timestampValue) return coerceToDateFromPayload(dateValue.timestampValue);
+    return null;
+  };
+
+  const formatLocalizedSpanishDate = (dateValue) => {
+    const localized = readDateText(dateValue?.displayLocalized);
+    if (localized) return localized;
+    const parsed = coerceToDateFromPayload(dateValue);
+    if (!parsed) return '';
+    return parsed.toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Cancun'
+    });
+  };
+
   const getDateFromTransactionId = (transactionId) => {
     const rawId = String(transactionId || '').trim();
     const match = rawId.match(/^(\d{4})-(\d{2})-(\d{2})_/);
@@ -174,11 +238,16 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     if (!dateValue) return t('tx.detail.na');
 
     if (typeof dateValue === 'string') {
-      return dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
+      const calendar = dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
+      if (isSpanish) {
+        const localized = formatLocalizedSpanishDate(calendar);
+        if (localized) return localized;
+      }
+      return calendar;
     }
 
     if (isSpanish) {
-      const localized = readDateText(dateValue?.displayLocalized);
+      const localized = formatLocalizedSpanishDate(dateValue);
       if (localized) return localized;
     }
 

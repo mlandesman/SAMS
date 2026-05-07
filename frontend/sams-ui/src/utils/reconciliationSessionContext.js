@@ -1,4 +1,5 @@
 const RECON_SESSION_STORAGE_PREFIX = 'reconciliation:last-session:';
+export const RECON_SESSION_CONTEXT_CHANGED_EVENT = 'reconciliation-session-context-changed';
 
 const RESUMABLE_RECON_STATUSES = new Set(['draft', 'matching', 'reviewing']);
 
@@ -29,9 +30,15 @@ export function saveReconciliationSessionContext(clientId, sessionId) {
   if (!key) return;
   if (!normalizedSessionId) {
     sessionStorage.removeItem(key);
+    window.dispatchEvent(new CustomEvent(RECON_SESSION_CONTEXT_CHANGED_EVENT, {
+      detail: { clientId, sessionId: '' }
+    }));
     return;
   }
   sessionStorage.setItem(key, normalizedSessionId);
+  window.dispatchEvent(new CustomEvent(RECON_SESSION_CONTEXT_CHANGED_EVENT, {
+    detail: { clientId, sessionId: normalizedSessionId }
+  }));
 }
 
 export function getReconciliationSessionContext(clientId) {
@@ -44,4 +51,7 @@ export function clearReconciliationSessionContext(clientId) {
   const key = buildStorageKey(clientId);
   if (!key) return;
   sessionStorage.removeItem(key);
+  window.dispatchEvent(new CustomEvent(RECON_SESSION_CONTEXT_CHANGED_EVENT, {
+    detail: { clientId, sessionId: '' }
+  }));
 }

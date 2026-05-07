@@ -1,11 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { buildReconciliationPath, getReconciliationSessionContext } from '../utils/reconciliationSessionContext';
+import {
+  RECON_SESSION_CONTEXT_CHANGED_EVENT,
+  buildReconciliationPath,
+  getReconciliationSessionContext
+} from '../utils/reconciliationSessionContext';
 import './Sidebar.css';
 
 // Using the same logo URL you provided
@@ -92,12 +96,29 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   const { samsUser } = useAuth(); // Get user for role checking
   const { language, setLanguage, localizationEnabled } = useDesktopLanguage();
   const { t, menuLabel } = useDesktopStrings();
-  const reconciliationPath = useMemo(() => {
-    const clientId = selectedClient?.id;
-    if (!clientId) return '/reconciliation';
-    const cachedSessionId = getReconciliationSessionContext(clientId);
-    return buildReconciliationPath(cachedSessionId);
+  const [reconSessionContextVersion, setReconSessionContextVersion] = useState(0);
+  const [reconciliationPath, setReconciliationPath] = useState('/reconciliation');
+
+  useEffect(() => {
+    const onSessionContextChange = (event) => {
+      const eventClientId = String(event?.detail?.clientId || '').trim();
+      const currentClientId = String(selectedClient?.id || '').trim();
+      if (!currentClientId || (eventClientId && eventClientId !== currentClientId)) return;
+      setReconSessionContextVersion((v) => v + 1);
+    };
+    window.addEventListener(RECON_SESSION_CONTEXT_CHANGED_EVENT, onSessionContextChange);
+    return () => window.removeEventListener(RECON_SESSION_CONTEXT_CHANGED_EVENT, onSessionContextChange);
   }, [selectedClient?.id]);
+
+  useEffect(() => {
+    const clientId = selectedClient?.id;
+    if (!clientId) {
+      setReconciliationPath('/reconciliation');
+      return;
+    }
+    const cachedSessionId = getReconciliationSessionContext(clientId);
+    setReconciliationPath(buildReconciliationPath(cachedSessionId));
+  }, [selectedClient?.id, reconSessionContextVersion]);
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
   const allMenuItems = useMemo(() => {
