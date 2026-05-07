@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": "pending",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "306"
+          ],
+          "text": "Added an actionable Reconciliation Health dashboard card (show-only-on-issues) with priority messaging, stale uncleared bank transaction detail tooltip, acceptedAt-based last reconciliation date, and matching Firestore index coverage for reconciliation and mobile stored statement queries."
+        }
+      ]
+    },
+    {
       "version": "2.0.1",
       "date": "2026-05-04",
       "changes": [

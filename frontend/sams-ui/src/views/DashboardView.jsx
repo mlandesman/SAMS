@@ -32,6 +32,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
+import { useReconciliationHealth } from '../hooks/useReconciliationHealth';
 import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin } from '../utils/userRoles';
 import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDateTime } from '../utils/timezone';
@@ -76,6 +77,11 @@ function DashboardView() {
     loading: budgetLoading,
     error: budgetError,
   } = useBudgetStatus();
+  const {
+    reconciliationHealth,
+    loading: reconciliationHealthLoading,
+    error: reconciliationHealthError
+  } = useReconciliationHealth();
 
   const [pollCard, setPollCard] = useState(null);
   const [pollLoading, setPollLoading] = useState(false);
@@ -170,6 +176,11 @@ function DashboardView() {
   const locale = language === 'ES' ? 'es-MX' : 'en-US';
   const formatMoney = (value) => Number(value || 0).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formatCompactMoney = (value) => Number(value || 0).toLocaleString(locale);
+  const formatTxnAmountAbs = (centavos) => {
+    const n = Number(centavos);
+    if (!Number.isFinite(n)) return 'n/a';
+    return `$${formatMoney(Math.abs(n) / 100)}`;
+  };
 
   // For non-admin: get authorized units and property role (unitOwner = green, unitManager = purple)
   const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
@@ -362,6 +373,108 @@ function DashboardView() {
       <Grid container spacing={3}>
         {/* System Error Monitor — SuperAdmin only. Card hidden when no errors; status in StatusBar */}
         {isSuperAdmin && <ErrorMonitorSection />}
+
+        {/* Reconciliation Health Card — admin only, actionable states only */}
+        {isAdmin && (reconciliationHealthLoading || Boolean(reconciliationHealthError) || reconciliationHealth?.showCard) && (
+          <Grid item xs={12} sm={6} md={4}>
+            <Card
+              sx={{
+                height: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(10px)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+                }
+              }}
+              onClick={() => navigate('/reconciliation')}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <BalanceIcon sx={{ color: '#0863bf', mr: 1, fontSize: 28 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Reconciliation Health
+                  </Typography>
+                </Box>
+                {reconciliationHealthLoading ? (
+                  <Box display="flex" justifyContent="center" py={2}>
+                    <LoadingSpinner size="small" />
+                  </Box>
+                ) : reconciliationHealthError ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {reconciliationHealthError}
+                  </Typography>
+                ) : reconciliationHealth?.status === 'stale_uncleared' ? (
+                  <Tooltip
+                    title={
+                      reconciliationHealth?.staleUnclearedSample?.length > 0 ? (
+                        <Box sx={{ p: 1.5 }}>
+                          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
+                            Uncleared Transaction Details
+                          </Typography>
+                          {reconciliationHealth.staleUnclearedSample.map((item, index) => (
+                            <Box key={item.id} sx={{ mb: index < reconciliationHealth.staleUnclearedSample.length - 1 ? 1 : 0 }}>
+                              <Typography variant="body2" sx={{ color: 'white' }}>
+                                <strong>{item.date || 'n/a'}</strong> - {item.vendor || 'Unknown'} -{' '}
+                                <strong
+                                  style={{
+                                    color: Number(item.amount) < 0 ? '#fca5a5' : '#86efac'
+                                  }}
+                                >
+                                  {formatTxnAmountAbs(item.amount)}
+                                </strong>
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        'No sample details available.'
+                      )
+                    }
+                    arrow
+                    placement="top"
+                    PopperProps={{
+                      sx: {
+                        '& .MuiTooltip-tooltip': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                          maxWidth: 'none',
+                          padding: 0,
+                          color: 'white'
+                        }
+                      }
+                    }}
+                  >
+                    <Box sx={{ cursor: 'pointer' }}>
+                      <Typography variant="h4" sx={{ color: '#dc2626', fontWeight: 700, mb: 0.5 }}>
+                        {reconciliationHealth?.staleUnclearedCount || 0}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#1f2937', fontWeight: 500 }}>
+                        {reconciliationHealth?.staleUnclearedCount === 1
+                          ? 'Uncleared Transaction'
+                          : 'Uncleared Transactions'}
+                      </Typography>
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Last Reconciliation: {reconciliationHealth?.latestReconciliationDate || 'none'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                ) : reconciliationHealth?.status === 'reconciliation_due' ? (
+                  <Typography variant="h5" sx={{ color: '#dc2626', fontWeight: 700 }}>
+                    {reconciliationHealth?.message || `Last Reconciliation: ${reconciliationHealth?.latestReconciliationDate || 'none'}`}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Healthy
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Unit Account Status Card — non-admin only (replaces HOA Dues Status position) */}
         {isUnitOwnerOrManager && selectedUnitId && (

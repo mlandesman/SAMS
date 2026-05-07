@@ -19,7 +19,8 @@ import {
   excludeFromReconciliation,
   getWorkbench,
   applyMatchGapAdjustment,
-  regenerateReconciliationReport
+  regenerateReconciliationReport,
+  getReconciliationHealth
 } from '../controllers/reconciliationController.js';
 
 const router = express.Router();
@@ -315,6 +316,19 @@ router.get('/', requirePermission('accounts.manage'), async (req, res) => {
     res.json({ success: true, sessions });
   } catch (error) {
     console.error('reconciliations list:', error);
+    res.status(500).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+router.get('/health', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const staleDays = req.query?.staleDays;
+    const sampleLimit = req.query?.sampleLimit;
+    const result = await getReconciliationHealth(cid, { staleDays, sampleLimit });
+    res.json(result);
+  } catch (error) {
+    console.error('reconciliations health:', error);
     res.status(500).json({ success: false, error: error.message || 'Server error' });
   }
 });

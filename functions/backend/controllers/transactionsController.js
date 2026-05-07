@@ -36,6 +36,7 @@ import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { translateNoteToSpanishDeterministicFirst } from '../utils/notesLocalization.js';
+import { toIsoDateOrNull } from '../utils/dateIso.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId } = databaseFieldMappings;
 
@@ -103,6 +104,23 @@ function formatDateField(dateValue) {
     logError('Error formatting date field:', error);
     return null;
   }
+}
+
+function isCashAccountTransaction(data) {
+  const accountType = String(data?.accountType || '').trim().toLowerCase();
+  if (accountType === 'cash') return true;
+  const accountId = String(data?.accountId || '').trim().toLowerCase();
+  return accountId.startsWith('cash-');
+}
+
+function resolveCreateClearedDate(mappedData) {
+  if (hasOwnProperty(mappedData, 'clearedDate')) {
+    return mappedData.clearedDate ?? null;
+  }
+  if (!isCashAccountTransaction(mappedData)) {
+    return null;
+  }
+  return toIsoDateOrNull(mappedData.date, dateService) ?? null;
 }
 
 // Helper function to resolve vendor name to ID
@@ -565,8 +583,10 @@ async function createTransaction(clientId, data, options = {}) {
       logDebug('💾 [BATCH MODE] Adding transaction to batch:', txnId);
       
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const resolvedClearedDate = resolveCreateClearedDate(mappedData);
       const transactionData = {
         ...mappedData,
+        clearedDate: resolvedClearedDate,
         documents: mappedData.documents || []
       };
       
@@ -607,8 +627,10 @@ async function createTransaction(clientId, data, options = {}) {
     await db.runTransaction(async (transaction) => {
       // Add the transaction with new ID format
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const resolvedClearedDate = resolveCreateClearedDate(mappedData);
       const transactionData = {
         ...mappedData,
+        clearedDate: resolvedClearedDate,
         documents: mappedData.documents || [] // Use actual documents array from data
       };
       

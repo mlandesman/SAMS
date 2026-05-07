@@ -1,6 +1,6 @@
 import admin from 'firebase-admin';
 import { getDb, getApp } from '../firebase.js';
-import { getNow } from '../services/DateService.js';
+import { getNow, DateService } from '../services/DateService.js';
 import { parseBankFile } from '../services/bankParsers/index.js';
 import {
   normalizeRowsForSession,
@@ -21,8 +21,10 @@ import {
 import { generateAndUploadReconciliationReport } from '../services/reconciliationReportService.js';
 import { getStorageBucketName } from '../utils/storageBucketName.js';
 import { fetchTransactionsForMatching } from '../services/reconciliationMatchingPool.js';
+import { toIsoDateOrNull } from '../utils/dateIso.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 const TOLERANCE = 0.01;
+const dateService = new DateService({ timezone: 'America/Cancun' });
 
 function reconDebugLog(stage, payload) {
   try {
@@ -43,25 +45,48 @@ function summarizeBankRows(rows, limit = 8) {
   }));
 }
 
+function formatUtcDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const year = String(date.getUTCFullYear());
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function txnDateIso(txn) {
   const d = txn?.date;
   if (d == null) return null;
   if (typeof d?.toDate === 'function') {
-    const dt = d.toDate();
-    return Number.isNaN(dt?.getTime?.()) ? null : dt.toISOString().slice(0, 10);
+    return toIsoDateOrNull(d.toDate(), dateService);
   }
   const sec = d?.seconds ?? d?._seconds;
   if (sec != null) {
-    const dt = new Date(Number(sec) * 1000);
-    return Number.isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
+    return toIsoDateOrNull(new Date(Number(sec) * 1000), dateService);
   }
   if (typeof d === 'string' || typeof d === 'number') {
-    const dt = new Date(d);
-    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
-    const s = String(d).slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+    return toIsoDateOrNull(d, dateService);
   }
   return null;
+}
+
+function isIsoDateString(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function addDaysToIso(isoDate, days) {
+  if (!isIsoDateString(isoDate)) return null;
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + Number(days || 0));
+  return formatUtcDate(d);
+}
+
+function daysSinceIso(isoDate, nowIso) {
+  if (!isIsoDateString(isoDate) || !isIsoDateString(nowIso)) return null;
+  const then = new Date(`${isoDate}T00:00:00Z`);
+  const now = new Date(`${nowIso}T00:00:00Z`);
+  if (Number.isNaN(then.getTime()) || Number.isNaN(now.getTime())) return null;
+  return Math.floor((now.getTime() - then.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 function txnInStatementPeriod(txn, startDate, endDate) {
@@ -417,7 +442,7 @@ export async function importBankFile(clientId, sessionId, files, _user) {
   const errors = [...parseErrors];
   const prevDay = new Date(`${session.startDate}T00:00:00Z`);
   prevDay.setUTCDate(prevDay.getUTCDate() - 1);
-  const prevDayIso = prevDay.toISOString().slice(0, 10);
+  const prevDayIso = formatUtcDate(prevDay);
   reconDebugLog('import.filter', {
     clientId,
     sessionId,
@@ -1253,4 +1278,143 @@ export async function regenerateReconciliationReport(clientId, sessionId, user) 
   });
 
   return { success: true, reconciliationReportUrl: reportUrl };
+}
+
+export async function getReconciliationHealth(clientId, options = {}) {
+  const staleDays = Number.isInteger(Number(options.staleDays))
+    ? Math.max(1, Number(options.staleDays))
+    : 30;
+  const dueDays = Number.isInteger(Number(options.dueDays))
+    ? Math.max(1, Number(options.dueDays))
+    : 31;
+  const sampleLimit = Number.isInteger(Number(options.sampleLimit))
+    ? Math.max(1, Math.min(25, Number(options.sampleLimit)))
+    : 5;
+
+  const db = await getDb();
+  const txnsRef = db.collection(`clients/${clientId}/transactions`);
+  const nowIso = toIsoDateOrNull(getNow(), dateService);
+  const reconRef = db.collection(`clients/${clientId}/reconciliations`);
+
+  const latestAcceptedSnap = await reconRef
+    .orderBy('acceptedAt', 'desc')
+    .limit(1)
+    .get();
+
+  let latestReconciliationDate = null;
+  if (!latestAcceptedSnap.empty) {
+    const acceptedAt = latestAcceptedSnap.docs[0].data()?.acceptedAt || null;
+    if (acceptedAt?.toDate && typeof acceptedAt.toDate === 'function') {
+      latestReconciliationDate = toIsoDateOrNull(acceptedAt.toDate(), dateService);
+    } else {
+      const sec = acceptedAt?.seconds ?? acceptedAt?._seconds;
+      if (sec != null) {
+        latestReconciliationDate = toIsoDateOrNull(new Date(Number(sec) * 1000), dateService);
+      }
+    }
+  }
+
+  const latestClearedSnap = await txnsRef
+    .where('accountType', '==', 'bank')
+    .orderBy('clearedDate', 'desc')
+    .limit(1)
+    .get();
+
+  let latestClearedDate = null;
+  if (!latestClearedSnap.empty) {
+    const candidate = String(latestClearedSnap.docs[0].data()?.clearedDate || '').slice(0, 10);
+    if (isIsoDateString(candidate)) latestClearedDate = candidate;
+  }
+
+  let unclearedBankCount = 0;
+  let staleUnclearedCount = 0;
+  const staleUnclearedSample = [];
+  const staleCutoffIso = latestReconciliationDate ? addDaysToIso(latestReconciliationDate, -staleDays) : null;
+
+  let cursor = null;
+  // Full scan of bank rows so legacy docs without clearedDate are included.
+  while (true) {
+    let q = txnsRef
+      .where('accountType', '==', 'bank')
+      .orderBy('__name__')
+      .limit(500);
+    if (cursor) q = q.startAfter(cursor);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      const isUncleared = data.clearedDate == null || String(data.clearedDate).trim() === '';
+      if (!isUncleared) continue;
+      unclearedBankCount += 1;
+
+      const txIso = txnDateIso(data);
+      if (!staleCutoffIso || !isIsoDateString(txIso)) continue;
+      if (txIso < staleCutoffIso) {
+        staleUnclearedCount += 1;
+        if (staleUnclearedSample.length < sampleLimit) {
+          const vendor = String(
+            data.vendorName ||
+            data.vendor ||
+            data.payee ||
+            data.payTo ||
+            data.beneficiary ||
+            ''
+          ).trim();
+          staleUnclearedSample.push({
+            id: doc.id,
+            date: txIso,
+            amount: data.amount ?? null,
+            accountId: data.accountId || null,
+            vendor: vendor || 'Unknown',
+            notes: String(data.notes || data.description || '').slice(0, 120)
+          });
+        }
+      }
+    }
+
+    if (snap.size < 500) break;
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+
+  const daysSinceLastReconciliation = latestReconciliationDate
+    ? daysSinceIso(latestReconciliationDate, nowIso)
+    : null;
+  const reconciliationDue = latestReconciliationDate == null
+    || (daysSinceLastReconciliation != null && daysSinceLastReconciliation > dueDays);
+  const showCard = reconciliationDue || staleUnclearedCount > 0;
+  const status =
+    staleUnclearedCount > 0
+      ? 'stale_uncleared'
+      : reconciliationDue
+        ? 'reconciliation_due'
+        : 'healthy';
+
+  let message = 'Healthy.';
+  if (status === 'stale_uncleared') {
+    message = `Uncleared Transactions: ${staleUnclearedCount}`;
+  } else if (status === 'reconciliation_due' && latestReconciliationDate) {
+    message = `Last Reconciliation: ${latestReconciliationDate}`;
+  } else if (status === 'reconciliation_due') {
+    message = 'Bank reconciliation is due. No cleared bank transactions found yet.';
+  }
+
+  return {
+    success: true,
+    health: {
+      showCard,
+      status,
+      staleDays,
+      dueDays,
+      nowDate: nowIso,
+      latestReconciliationDate,
+      daysSinceLastReconciliation,
+      latestClearedDate,
+      reconciliationDue,
+      unclearedBankCount,
+      staleUnclearedCount,
+      staleUnclearedSample,
+      message
+    }
+  };
 }
