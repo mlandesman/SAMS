@@ -275,7 +275,20 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     const canonicalDisplay = readDateText(dateValue?.unambiguous_long_date)
       || readDateText(dateValue?.display);
 
-    if (canonicalDisplay) return canonicalDisplay;
+    if (canonicalDisplay) {
+      if (!isSpanish) {
+        const parsedDisplay = parseDisplayDate(canonicalDisplay);
+        if (parsedDisplay) {
+          return parsedDisplay.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Cancun'
+          });
+        }
+      }
+      return canonicalDisplay;
+    }
 
     const localized = formatLocalizedDate(dateValue);
     if (localized) return localized;
