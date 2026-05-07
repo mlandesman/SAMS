@@ -166,6 +166,10 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
   const coerceToDateFromPayload = (dateValue) => {
     if (!dateValue) return null;
     if (dateValue instanceof Date) return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    if (typeof dateValue === 'number') {
+      const d = new Date(dateValue);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
     if (typeof dateValue === 'string') {
       const s = dateValue.trim();
       if (!s) return null;
