@@ -180,7 +180,7 @@ function TransactionsView() {
     const currentState = location.state;
     if (!currentState || typeof currentState !== 'object') return;
     const nextState = { ...currentState };
-    keys.forEach((key) => {
+    Array.from(new Set(keys)).forEach((key) => {
       delete nextState[key];
     });
     navigate('.', { replace: true, state: nextState });
@@ -1488,22 +1488,25 @@ function TransactionsView() {
     }
   }, [filteredTransactions, selectedClient, currentDateRange, advancedFilters, showError]);
   
-  // Handle navigation state for opening unified payment from other views
+  // Handle one-shot navigation state in a single pass to avoid clobber races between effects.
   useEffect(() => {
+    const keysToClear = [];
+
     if (location.state?.openUnifiedPayment) {
       setShowUnifiedPaymentModal(true);
       setSelectedUnitForPayment(location.state.unitId);
-      // Clear state to prevent reopening on refresh
-      clearLocationStateKeys(['openUnifiedPayment', 'unitId']);
+      keysToClear.push('openUnifiedPayment', 'unitId');
     }
-  }, [location.state, clearLocationStateKeys]);
 
-  // Highlight a transaction row when navigated from bank reconciliation (or similar)
-  useEffect(() => {
     const hid = location.state?.highlightTransactionId;
-    if (!hid) return;
-    setTransactionToFind(hid);
-    clearLocationStateKeys(['highlightTransactionId']);
+    if (hid) {
+      setTransactionToFind(hid);
+      keysToClear.push('highlightTransactionId');
+    }
+
+    if (keysToClear.length > 0) {
+      clearLocationStateKeys(keysToClear);
+    }
   }, [location.state, clearLocationStateKeys]);
 
   useEffect(() => {
