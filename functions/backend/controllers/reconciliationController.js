@@ -1,6 +1,6 @@
 import admin from 'firebase-admin';
 import { getDb, getApp } from '../firebase.js';
-import { getNow } from '../services/DateService.js';
+import { getNow, DateService } from '../services/DateService.js';
 import { parseBankFile } from '../services/bankParsers/index.js';
 import {
   normalizeRowsForSession,
@@ -23,6 +23,7 @@ import { getStorageBucketName } from '../utils/storageBucketName.js';
 import { fetchTransactionsForMatching } from '../services/reconciliationMatchingPool.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 const TOLERANCE = 0.01;
+const dateService = new DateService({ timezone: 'America/Cancun' });
 
 function reconDebugLog(stage, payload) {
   try {
@@ -43,23 +44,42 @@ function summarizeBankRows(rows, limit = 8) {
   }));
 }
 
+function toIsoDateOrNull(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  try {
+    const formatted = dateService.formatForFrontend(value);
+    const iso = formatted?.ISO_8601 || null;
+    return isIsoDateString(iso) ? iso : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatUtcDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const year = String(date.getUTCFullYear());
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function txnDateIso(txn) {
   const d = txn?.date;
   if (d == null) return null;
   if (typeof d?.toDate === 'function') {
-    const dt = d.toDate();
-    return Number.isNaN(dt?.getTime?.()) ? null : dt.toISOString().slice(0, 10);
+    return toIsoDateOrNull(d.toDate());
   }
   const sec = d?.seconds ?? d?._seconds;
   if (sec != null) {
-    const dt = new Date(Number(sec) * 1000);
-    return Number.isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
+    return toIsoDateOrNull(new Date(Number(sec) * 1000));
   }
   if (typeof d === 'string' || typeof d === 'number') {
-    const dt = new Date(d);
-    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
-    const s = String(d).slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+    return toIsoDateOrNull(d);
   }
   return null;
 }
@@ -73,7 +93,7 @@ function addDaysToIso(isoDate, days) {
   const d = new Date(`${isoDate}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return null;
   d.setUTCDate(d.getUTCDate() + Number(days || 0));
-  return d.toISOString().slice(0, 10);
+  return formatUtcDate(d);
 }
 
 function daysSinceIso(isoDate, nowIso) {
@@ -437,7 +457,7 @@ export async function importBankFile(clientId, sessionId, files, _user) {
   const errors = [...parseErrors];
   const prevDay = new Date(`${session.startDate}T00:00:00Z`);
   prevDay.setUTCDate(prevDay.getUTCDate() - 1);
-  const prevDayIso = prevDay.toISOString().slice(0, 10);
+  const prevDayIso = formatUtcDate(prevDay);
   reconDebugLog('import.filter', {
     clientId,
     sessionId,
@@ -1288,7 +1308,7 @@ export async function getReconciliationHealth(clientId, options = {}) {
 
   const db = await getDb();
   const txnsRef = db.collection(`clients/${clientId}/transactions`);
-  const nowIso = getNow().toISOString().slice(0, 10);
+  const nowIso = toIsoDateOrNull(getNow());
   const reconRef = db.collection(`clients/${clientId}/reconciliations`);
 
   const latestAcceptedSnap = await reconRef
@@ -1300,13 +1320,11 @@ export async function getReconciliationHealth(clientId, options = {}) {
   if (!latestAcceptedSnap.empty) {
     const acceptedAt = latestAcceptedSnap.docs[0].data()?.acceptedAt || null;
     if (acceptedAt?.toDate && typeof acceptedAt.toDate === 'function') {
-      const d = acceptedAt.toDate();
-      if (!Number.isNaN(d.getTime())) latestReconciliationDate = d.toISOString().slice(0, 10);
+      latestReconciliationDate = toIsoDateOrNull(acceptedAt.toDate());
     } else {
       const sec = acceptedAt?.seconds ?? acceptedAt?._seconds;
       if (sec != null) {
-        const d = new Date(Number(sec) * 1000);
-        if (!Number.isNaN(d.getTime())) latestReconciliationDate = d.toISOString().slice(0, 10);
+        latestReconciliationDate = toIsoDateOrNull(new Date(Number(sec) * 1000));
       }
     }
   }
