@@ -30,11 +30,11 @@
 | **305** | [Debt] Reconciliation "Add Transaction" UI action is broken/misleading | medium | ✅ CLOSED |
 | **309** | [Bug] Editing a Cleared Transaction throws an error | high | ✅ CLOSED |
 | **310** | Add `Reconciliation` option to Credit Balance Source dropdown | medium | ✅ CLOSED |
-| **306** | [Debt] Reconciliation Draft/Reviewing cannot be reopened | medium | ⏸️ DEFERRED (OPEN) |
+| **306** | [Debt] Reconciliation Draft/Reviewing cannot be reopened | medium | ✅ CLOSED (PR #330 merged) |
 
 **Theme**: Remove noisy false errors and lock down reconciliation/credit edge cases before non-HOA expansion.  
 **Risk**: Medium (cross-cutting frontend + backend + validation touchpoints).  
-**Status**: ✅ COMPLETE (May 4, 2026) — merged via PR #326 with BugBot follow-up fixes applied and cleared.  
+**Status**: ✅ COMPLETE (May 6, 2026) — merged via PR #326, with reconciliation follow-up closeout in PR #330 (Issue #306 closed).  
 **Next Sprint**: UC-LITE (non-association/single-family onboarding path) remains the next strategic sprint.
 
 ---
@@ -1158,7 +1158,7 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 28, 2026 — Performed reality-alignment pass: normalized completed sprint labeling, removed duplicate historical-recon section, converted malformed Notes numbering to bullets, corrected superseded B3 status language, and aligned localization/reconciliation closeout wording to merged-to-main truth.*  
+*Updated: May 6, 2026 — Recorded reconciliation follow-up closeout (PR #330), marked issue #306 closed, and aligned CLEANUP-SWEEP-1 status text with final merged scope.*  
 *Previous update: April 27, 2026 — Marked Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) complete after PR #320 merge to `main`; retained carry-forward/defer governance for #319 and #318; changelog pending entry is in place for upcoming deployment.*  
 *Previous update: April 25, 2026 — Between-sprint reset: added ACTIVE Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) as next execution sprint, moved UC-LITE sequencing to immediately follow localization parity, and kept backup/debt work queued unless risk promotes them.*  
 *Previous update: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.*  
