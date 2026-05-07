@@ -1488,8 +1488,16 @@ function TransactionsView() {
     }
   }, [filteredTransactions, selectedClient, currentDateRange, advancedFilters, showError]);
   
-  // Handle one-shot navigation state in a single pass to avoid clobber races between effects.
+  // Consume all one-shot navigation state in a single pass and clear every consumed key
+  // together. Reconciliation return keys are consumed here too so the cleanup `navigate`
+  // does not re-trigger this effect with the same incoming context on the next render.
   useEffect(() => {
+    const clientId = selectedClient?.id;
+    if (!clientId) {
+      setReconciliationReturnPath('/reconciliation');
+      return;
+    }
+
     const keysToClear = [];
 
     if (location.state?.openUnifiedPayment) {
@@ -1504,29 +1512,25 @@ function TransactionsView() {
       keysToClear.push('highlightTransactionId');
     }
 
-    if (keysToClear.length > 0) {
-      clearLocationStateKeys(keysToClear);
-    }
-  }, [location.state, clearLocationStateKeys]);
-
-  useEffect(() => {
-    const clientId = selectedClient?.id;
-    if (!clientId) {
-      setReconciliationReturnPath('/reconciliation');
-      return;
-    }
-
     const stateSessionId = String(location.state?.reconciliationReturnSessionId || '').trim();
     const stateClientId = String(location.state?.reconciliationReturnClientId || '').trim();
     if (stateSessionId && stateClientId === clientId) {
       saveReconciliationSessionContext(clientId, stateSessionId);
       setReconciliationReturnPath(buildReconciliationPath(stateSessionId));
-      return;
+      keysToClear.push(
+        'reconciliationReturnSessionId',
+        'reconciliationReturnClientId',
+        'reconciliationReturnPath'
+      );
+    } else {
+      const cachedSessionId = getReconciliationSessionContext(clientId);
+      setReconciliationReturnPath(buildReconciliationPath(cachedSessionId));
     }
 
-    const cachedSessionId = getReconciliationSessionContext(clientId);
-    setReconciliationReturnPath(buildReconciliationPath(cachedSessionId));
-  }, [location.state, selectedClient?.id]);
+    if (keysToClear.length > 0) {
+      clearLocationStateKeys(keysToClear);
+    }
+  }, [location.state, selectedClient?.id, clearLocationStateKeys]);
 
   return (
     <div className="view-container">

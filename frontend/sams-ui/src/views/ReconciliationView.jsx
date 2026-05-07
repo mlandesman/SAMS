@@ -35,7 +35,6 @@ import { linkDocumentsToTransaction, uploadDocumentsForTransaction } from '../ap
 import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
 import {
-  buildReconciliationPath,
   clearReconciliationSessionContext,
   getReconciliationSessionContext,
   isResumableReconciliationSession,
@@ -1391,12 +1390,14 @@ export default function ReconciliationView() {
                               title="Edit in Transactions"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                // TransactionsView recomputes the return path from
+                                // (sessionId, clientId) via buildReconciliationPath;
+                                // do not pass a redundant pre-built path here.
                                 navigate('/transactions', {
                                   state: {
                                     highlightTransactionId: t.id,
                                     reconciliationReturnSessionId: sessionId,
-                                    reconciliationReturnClientId: clientId,
-                                    reconciliationReturnPath: buildReconciliationPath(sessionId)
+                                    reconciliationReturnClientId: clientId
                                   }
                                 });
                               }}
