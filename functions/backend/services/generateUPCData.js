@@ -563,7 +563,9 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     }
     
     const originalCentavos = hoaBill.originalCentavos || 0;
-    const totalPaidCentavos = hoaBill.paidCentavos || 0; // Total paid (base + penalty combined)
+    const basePaidCentavos = hoaBill.basePaidCentavos || 0;
+    const penaltyPaidCentavos = hoaBill.penaltyPaidCentavos || 0;
+    const totalPaidCentavos = basePaidCentavos + penaltyPaidCentavos;
     let penaltyCentavos = hoaBill.penaltyCentavos || 0;
     
     // Handle penalty waiver
@@ -574,16 +576,11 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
       logDebug(`   🚫 Waived penalty for ${hoaBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
     }
     
-    // Calculate total due and remaining
-    const totalDueCentavos = originalCentavos + penaltyCentavos;
-    const totalRemainingCentavos = Math.max(0, totalDueCentavos - totalPaidCentavos);
-    
-    // Infer base vs penalty paid from total paid
-    // Payment applies to base first, then penalty
-    const basePaidCentavos = Math.min(totalPaidCentavos, originalCentavos);
+    // Calculate remaining from authoritative paid components
     const baseRemainingCentavos = Math.max(0, originalCentavos - basePaidCentavos);
-    const penaltyPaidCentavos = Math.max(0, totalPaidCentavos - originalCentavos);
     const penaltyRemainingCentavos = Math.max(0, penaltyCentavos - penaltyPaidCentavos);
+    const totalDueCentavos = originalCentavos + penaltyCentavos;
+    const totalRemainingCentavos = baseRemainingCentavos + penaltyRemainingCentavos;
     
     // Determine status based on total remaining
     let status;
@@ -1161,5 +1158,9 @@ export async function generateUPCDataForModal({
     generatedAt: upcData.generatedAt
   };
 }
+
+export const __testables = {
+  computePerBillRemaining
+};
 
 export default { generateUPCData, generateUPCDataForModal };
