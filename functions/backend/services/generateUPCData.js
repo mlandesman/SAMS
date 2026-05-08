@@ -220,15 +220,16 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
   
   // Recalculate HOA penalties
   for (const hoaBill of rawData.hoaDues) {
-    // Skip if already paid
-    if (hoaBill.paidCentavos >= hoaBill.originalCentavos && hoaBill.originalCentavos > 0) {
+    // Skip only when HOA principal is fully covered.
+    // Do not use total paid here because penalty-heavy payments can mask unpaid base.
+    if ((hoaBill.basePaidCentavos || 0) >= hoaBill.originalCentavos && hoaBill.originalCentavos > 0) {
       continue;
     }
     
     // Map fields to what calculatePenaltyForBill expects
     const billForCalc = {
       currentCharge: hoaBill.originalCentavos || 0,
-      paidAmount: hoaBill.paidCentavos || 0,
+      paidAmount: hoaBill.basePaidCentavos || 0,
       penaltyAmount: hoaBill.penaltyCentavos || 0,
       dueDate: hoaBill.dueDate
     };
@@ -1160,7 +1161,8 @@ export async function generateUPCDataForModal({
 }
 
 export const __testables = {
-  computePerBillRemaining
+  computePerBillRemaining,
+  recalculatePenaltiesForRawData
 };
 
 export default { generateUPCData, generateUPCDataForModal };

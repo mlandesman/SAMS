@@ -98,3 +98,55 @@ describe('generateUPCData HOA remaining math', () => {
     expect(bills[0].totalRemainingCentavos).toBe(2500);
   });
 });
+
+describe('generateUPCData penalty recalculation skip behavior', () => {
+  test('does not skip HOA penalty recalculation when total paid masks unpaid base', async () => {
+    const rawData = {
+      hoaDues: [
+        {
+          billId: '2026-Q3',
+          originalCentavos: 10000,
+          paidCentavos: 10000,
+          basePaidCentavos: 0,
+          penaltyPaidCentavos: 10000,
+          penaltyCentavos: 0,
+          dueDate: '2025-01-01T00:00:00.000Z'
+        }
+      ],
+      waterBills: [],
+      config: {
+        penaltyRate: 0.1,
+        penaltyDays: 10
+      }
+    };
+
+    await __testables.recalculatePenaltiesForRawData(rawData, new Date('2025-03-01T00:00:00.000Z'));
+
+    expect(rawData.hoaDues[0].penaltyCentavos).toBeGreaterThan(0);
+  });
+
+  test('keeps water skip behavior unchanged when base is covered', async () => {
+    const rawData = {
+      hoaDues: [],
+      waterBills: [
+        {
+          billId: '2026-01',
+          originalCentavos: 10000,
+          paidCentavos: 10000,
+          basePaidCentavos: 0,
+          penaltyPaidCentavos: 10000,
+          penaltyCentavos: 777,
+          dueDate: '2025-01-01T00:00:00.000Z'
+        }
+      ],
+      config: {
+        penaltyRate: 0.1,
+        penaltyDays: 10
+      }
+    };
+
+    await __testables.recalculatePenaltiesForRawData(rawData, new Date('2025-03-01T00:00:00.000Z'));
+
+    expect(rawData.waterBills[0].penaltyCentavos).toBe(777);
+  });
+});
