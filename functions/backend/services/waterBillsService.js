@@ -8,6 +8,7 @@ import penaltyRecalculationService from './penaltyRecalculationService.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { validateCentavos } from '../../shared/utils/centavosValidation.js';
+import { logWarn } from '../../shared/logger.js';
 
 class WaterBillsService {
   constructor() {
@@ -1350,6 +1351,105 @@ class WaterBillsService {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}T00:00:00.000-05:00`; // Cancun timezone offset
+  }
+
+  /**
+   * Guarded write for a single unit's `currentCharge` field on an existing bill.
+   *
+   * Invariant: `newCurrentChargeCentavos >= existingBasePaid` must hold, so a bill
+   * never enters the impossible state `currentCharge < basePaid` (observed on AVII
+   * unit 106 water:2026-Q1 where `currentCharge=0` while `basePaid=$1,789.74`).
+   *
+   * Normal flow: silently applies the update.
+   * Invariant violation without `force: true`: refuses the write and throws an
+   *   error whose `code` is `WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED`.
+   * Invariant violation with `force: true`: emits a structured
+   *   `WATERBILLS_CURRENTCHARGE_GUARD_FORCED` warning log and proceeds. Intended
+   *   for legitimate zero-base regeneration (e.g., admin-initiated bill rebuild
+   *   under an explicit data-correction protocol).
+   *
+   * Behavior for any normal-flow write is unchanged.
+   *
+   * @param {string} clientId
+   * @param {string} billDocId - Firestore bill document id (e.g., "2026-Q1" or "2026-00").
+   * @param {string} unitId
+   * @param {number} newCurrentChargeCentavos - INTEGER CENTAVOS.
+   * @param {object} [options]
+   * @param {boolean} [options.force=false] - Bypass the invariant with a warning log.
+   * @returns {Promise<{written: boolean, forced: boolean, existingBasePaid: number, newCurrentCharge: number}>}
+   */
+  async setUnitCurrentCharge(clientId, billDocId, unitId, newCurrentChargeCentavos, options = {}) {
+    await this._initializeDb();
+
+    const force = options.force === true;
+    const proposedNewCurrentCharge = validateCentavos(
+      newCurrentChargeCentavos,
+      `setUnitCurrentCharge[${clientId}/${billDocId}/${unitId}]`
+    );
+
+    const billRef = this.db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc(billDocId);
+
+    const billDoc = await billRef.get();
+    if (!billDoc.exists) {
+      throw new Error(`Bill document not found: clients/${clientId}/projects/waterBills/bills/${billDocId}`);
+    }
+
+    const billData = billDoc.data();
+    const unitBill = billData?.bills?.units?.[unitId];
+    if (!unitBill) {
+      throw new Error(
+        `Unit ${unitId} not present on bill ${billDocId} for client ${clientId}`
+      );
+    }
+
+    const existingBasePaid = unitBill.basePaid || 0;
+
+    if (proposedNewCurrentCharge < existingBasePaid) {
+      const ctx = {
+        clientId,
+        billDocId,
+        unitId,
+        existingBasePaid,
+        proposedNewCurrentCharge
+      };
+      if (!force) {
+        logWarn(
+          `⛔ [WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED] Refusing currentCharge write below existing basePaid`,
+          { diagnosticCode: 'WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED', ...ctx }
+        );
+        const err = new Error(
+          `WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED: refusing to set currentCharge=${proposedNewCurrentCharge} ` +
+          `below existing basePaid=${existingBasePaid} for ${clientId}/${billDocId}/${unitId}. ` +
+          `Pass { force: true } only for legitimate zero-base regeneration under an explicit data-correction protocol.`
+        );
+        err.code = 'WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED';
+        err.diagnostic = ctx;
+        throw err;
+      }
+      logWarn(
+        `⚠️ [WATERBILLS_CURRENTCHARGE_GUARD_FORCED] currentCharge written below existing basePaid via force flag`,
+        { diagnosticCode: 'WATERBILLS_CURRENTCHARGE_GUARD_FORCED', ...ctx }
+      );
+    }
+
+    await billRef.update({
+      [`bills.units.${unitId}.currentCharge`]: proposedNewCurrentCharge
+    });
+
+    // Invalidate cache so subsequent reads see the change
+    if (typeof billData.fiscalYear === 'number') {
+      waterDataService.invalidate(clientId, billData.fiscalYear);
+    }
+
+    return {
+      written: true,
+      forced: force && proposedNewCurrentCharge < existingBasePaid,
+      existingBasePaid,
+      newCurrentCharge: proposedNewCurrentCharge
+    };
   }
 
   /**

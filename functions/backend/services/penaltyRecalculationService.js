@@ -135,6 +135,39 @@ class PenaltyRecalculationService {
           const penaltyResult = this.calculatePenaltyForBill(unitData, currentDate, billData.dueDate, config);
           
           if (penaltyResult.updated) {
+            const currentPenaltyPaid = unitData.penaltyPaid || 0;
+
+            // GUARD: refuse to write a new penaltyAmount that is below
+            // already-paid penaltyPaid. Writing a lower value would create
+            // the impossible state penaltyPaid > penaltyAmount (observed on
+            // AVII unit 106 water:2026-Q2). Skip the write and emit a
+            // diagnostic. The bill's existing penaltyAmount is preserved.
+            if (penaltyResult.penaltyAmount < currentPenaltyPaid) {
+              if (!results.guardSkippedBills) {
+                results.guardSkippedBills = [];
+              }
+              results.guardSkippedBills.push({
+                billDocId: billDoc.id,
+                unitId,
+                currentPenaltyAmount: unitData.penaltyAmount || 0,
+                currentPenaltyPaid,
+                proposedNewPenaltyAmount: penaltyResult.penaltyAmount
+              });
+              logWarn(
+                `⛔ [PENALTY_RECALC_GUARD_SKIPPED] Refusing penalty write that would create penaltyPaid > penaltyAmount`,
+                {
+                  diagnosticCode: 'PENALTY_RECALC_GUARD_SKIPPED',
+                  clientId,
+                  billDocId: billDoc.id,
+                  unitId,
+                  currentPenaltyAmount: unitData.penaltyAmount || 0,
+                  currentPenaltyPaid,
+                  proposedNewPenaltyAmount: penaltyResult.penaltyAmount
+                }
+              );
+              continue;
+            }
+
             // Update the bill with new penalty calculation
             unitData.penaltyAmount = penaltyResult.penaltyAmount;
             // Use currentCharge with fallback pattern as coordinated
