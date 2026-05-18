@@ -30,6 +30,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
+import { getNotesArray, createNotesEntry } from '../../shared/utils/formatUtils.js';
 import waterBillsServiceDefault from '../services/waterBillsService.js';
 import creditServiceDefault from '../services/creditService.js';
 
@@ -134,6 +135,47 @@ function randomSuffix(len = 9) {
   return Math.random().toString(36).slice(2, 2 + len);
 }
 
+// Task 3.5 — canonical paid/status derivation (mirror unifiedPaymentWrapper.js §2185-2291).
+function deriveStatusAndPaid(basePaid, penaltyPaid, scheduledAmount) {
+  const amount = (basePaid || 0) + (penaltyPaid || 0);
+  let status;
+  if ((basePaid || 0) >= (scheduledAmount || 0)) {
+    status = 'paid';
+  } else if (amount > 0) {
+    status = 'partial';
+  } else {
+    status = 'unpaid';
+  }
+  return { status, paid: status === 'paid' };
+}
+
+function txDateToIsoDay(d) {
+  if (!d) return null;
+  if (typeof d === 'string') return d.slice(0, 10);
+  if (typeof d?.toDate === 'function') return d.toDate().toISOString().slice(0, 10);
+  if (typeof d?._seconds === 'number') return new Date(d._seconds * 1000).toISOString().slice(0, 10);
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  return null;
+}
+
+function txNotesFirstLine(notes) {
+  if (!notes) return 'Payment';
+  if (typeof notes === 'string') return notes.split('\n')[0];
+  if (Array.isArray(notes) && notes.length > 0) {
+    const t = notes[0]?.text || '';
+    return t.split('\n')[0];
+  }
+  return 'Payment';
+}
+
+// Derive (quarterNum, monthInQuarter) from a 0-based fiscal-year-relative month index
+// using AVII's quarterly structure (3 months per quarter). payments[8] -> Q3, 3rd month.
+function quarterTagFromMonthIndex(monthIndex0Based) {
+  const quarterNum = Math.floor(monthIndex0Based / 3) + 1; // 1..4
+  const monthInQuarter = (monthIndex0Based % 3) + 1;       // 1..3
+  return { quarterNum, monthInQuarter };
+}
+
 async function writeReport(stepKey, summary) {
   const OUT_PATH = path.join(REPO_ROOT, `test-results/unit${UNIT_ID}-task-3-4-step-${stepKey}-${APPLY ? 'apply' : 'dry'}.json`);
   await fs.writeFile(OUT_PATH, JSON.stringify(summary, null, 2), 'utf8');
@@ -185,26 +227,91 @@ async function stepA(db) {
     newAllocs.splice(idx, 1, toAlloc);
   }
 
-  // Construct post-state payments
+  // Construct post-state payments (Task 3.5: re-derive paid/status/notes canonically)
+  const scheduledAmount = Number(duesPre.scheduledAmount || 0);
+  if (!scheduledAmount) {
+    throw new Error(`Pre-state mismatch: dues doc has no scheduledAmount for unit ${UNIT_ID}; cannot derive status canonically.`);
+  }
+  const txIsoDay = txDateToIsoDay(txPre.date);
+  const txDescPrefix = txNotesFirstLine(txPre.notes);
+  const moveToTag = quarterTagFromMonthIndex(cfgA.moveToMonthIndex);
   const newPayments = payments.map((p) => p ? { ...p } : p);
+
+  // ── m_to: gains MOVE_AMOUNT_CENTAVOS basePaid ──────────────────────────────
   const mTo = { ...(newPayments[cfgA.moveToMonthIndex] || {}) };
-  const mFrom = { ...(newPayments[cfgA.moveFromMonthIndex] || {}) };
   const mToBasePost = (mTo.basePaid || 0) + cfgA.moveAmountCentavos;
   const mToPenPost = mTo.penaltyPaid || 0;
   mTo.basePaid = mToBasePost;
   mTo.amount = mToBasePost + mToPenPost;
+  const mToDerived = deriveStatusAndPaid(mToBasePost, mToPenPost, scheduledAmount);
+  mTo.status = mToDerived.status;
+  mTo.paid = mToDerived.paid;
+  // Notes: append step-a transfer entry (idempotent on routing tag + tx)
+  const mToNotesPre = getNotesArray(mTo.notes);
+  const mToRoutingTag = `(Q${moveToTag.quarterNum} Month ${moveToTag.monthInQuarter}/3)`;
+  const mToAlreadyHasEntry = mToNotesPre.some((n) => n && n.transactionId === cfgA.txId
+    && typeof n.text === 'string' && n.text.endsWith(mToRoutingTag));
+  let mToNotesPost = mToNotesPre;
+  if (!mToAlreadyHasEntry) {
+    const newEntry = createNotesEntry({
+      transactionId: cfgA.txId,
+      timestamp: txIsoDay,
+      text: `${txDescPrefix}\nTxnID: ${cfgA.txId} ${mToRoutingTag}`,
+      amount: cfgA.moveAmountCentavos,
+      basePaid: cfgA.moveAmountCentavos,
+      penaltyPaid: 0
+    });
+    mToNotesPost = [...mToNotesPre, newEntry];
+  }
+  mTo.notes = mToNotesPost;
   newPayments[cfgA.moveToMonthIndex] = mTo;
+
+  // ── m_from: loses MOVE_AMOUNT_CENTAVOS basePaid ────────────────────────────
+  const mFrom = { ...(newPayments[cfgA.moveFromMonthIndex] || {}) };
   const mFromBasePost = (mFrom.basePaid || 0) - cfgA.moveAmountCentavos;
   const mFromPenPost = mFrom.penaltyPaid || 0;
+  if (mFromBasePost < 0) {
+    throw new Error(`Post-state mismatch: m_from basePaid would go negative (pre=${mFrom.basePaid}c, move=${cfgA.moveAmountCentavos}c).`);
+  }
   mFrom.basePaid = mFromBasePost;
   mFrom.amount = mFromBasePost + mFromPenPost;
+  const mFromDerived = deriveStatusAndPaid(mFromBasePost, mFromPenPost, scheduledAmount);
+  mFrom.status = mFromDerived.status;
+  mFrom.paid = mFromDerived.paid;
+  // Notes: locate existing entry by txId; reduce its amount/basePaid by the move, or
+  // remove the entry entirely if the move consumed it all.
+  const mFromNotesPre = getNotesArray(mFrom.notes);
+  const stepAEntryIdx = mFromNotesPre.findIndex((n) => n && n.transactionId === cfgA.txId);
+  let mFromNotesPost = [...mFromNotesPre];
+  if (stepAEntryIdx === -1) {
+    console.error(`[${UNIT_ID}/a] WARN: m_from notes[] has no entry for tx ${cfgA.txId}; leaving notes untouched.`);
+  } else {
+    const existingEntry = mFromNotesPre[stepAEntryIdx];
+    const remainingBaseForEntry = (existingEntry.basePaid || existingEntry.amount || 0) - cfgA.moveAmountCentavos;
+    if (remainingBaseForEntry <= 0) {
+      mFromNotesPost.splice(stepAEntryIdx, 1);
+    } else {
+      mFromNotesPost[stepAEntryIdx] = {
+        ...existingEntry,
+        amount: remainingBaseForEntry + (existingEntry.penaltyPaid || 0),
+        basePaid: remainingBaseForEntry
+      };
+    }
+  }
+  mFrom.notes = mFromNotesPost;
   newPayments[cfgA.moveFromMonthIndex] = mFrom;
 
   const summary = {
     unit: UNIT_ID, step: 'a', mode: APPLY ? 'APPLY' : 'DRY', capturedAt: getNow().toISOString(),
     pre: { tx_allocations: allocs, mFrom: mFromPre, mTo: mToPre },
     post: { tx_allocations: newAllocs, mFrom, mTo },
-    deltas: { moveAmountCentavos: cfgA.moveAmountCentavos, moveFromMonthIndex: cfgA.moveFromMonthIndex, moveToMonthIndex: cfgA.moveToMonthIndex }
+    deltas: {
+      moveAmountCentavos: cfgA.moveAmountCentavos,
+      moveFromMonthIndex: cfgA.moveFromMonthIndex,
+      moveToMonthIndex: cfgA.moveToMonthIndex,
+      mTo_status_post: mTo.status, mTo_paid_post: mTo.paid, mTo_notes_count_post: (mTo.notes || []).length,
+      mFrom_status_post: mFrom.status, mFrom_paid_post: mFrom.paid, mFrom_notes_count_post: (mFrom.notes || []).length
+    }
   };
 
   if (APPLY) {

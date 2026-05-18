@@ -37,6 +37,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
+import { getNotesArray, createNotesEntry } from '../../shared/utils/formatUtils.js';
 
 const CLIENT_ID = 'AVII';
 const UNIT_ID = '106';
@@ -47,6 +48,45 @@ const MOVE_TO_Q = 'Q3_2026';
 const MOVE_FROM_MONTH_INDEX = 9; // Q4.1 = payments[9]
 const MOVE_TO_MONTH_INDEX = 8;   // Q3.3 = payments[8]
 const MOVE_AMOUNT_CENTAVOS = 426930; // $4,269.30
+// Per Task 3.5 — re-derive paid/status/notes canonically (mirror unifiedPaymentWrapper.js
+// lines 2185-2291). Step a moves base between months without going through the canonical
+// payment flow, so paid/status/notes must be recomputed and the notes[] arrays updated.
+const MOVE_TO_QUARTER_NUM = 3;   // human-readable Q3 (matches existing (Q3 Month 3/3) tag)
+const MOVE_TO_MONTH_IN_QUARTER = 3; // 3/3 since payments[8] is the 3rd month of Q3
+const MOVE_FROM_QUARTER_NUM = 4; // Q4
+const MOVE_FROM_MONTH_IN_QUARTER = 1; // 1/3 (payments[9] = Q4.1)
+
+function deriveStatusAndPaid(basePaid, penaltyPaid, scheduledAmount) {
+  const amount = (basePaid || 0) + (penaltyPaid || 0);
+  let status;
+  if ((basePaid || 0) >= (scheduledAmount || 0)) {
+    status = 'paid';
+  } else if (amount > 0) {
+    status = 'partial';
+  } else {
+    status = 'unpaid';
+  }
+  return { status, paid: status === 'paid' };
+}
+
+function txDateToIsoDay(d) {
+  if (!d) return null;
+  if (typeof d === 'string') return d.slice(0, 10);
+  if (typeof d?.toDate === 'function') return d.toDate().toISOString().slice(0, 10);
+  if (typeof d?._seconds === 'number') return new Date(d._seconds * 1000).toISOString().slice(0, 10);
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  return null;
+}
+
+function txNotesFirstLine(notes) {
+  if (!notes) return 'Payment';
+  if (typeof notes === 'string') return notes.split('\n')[0];
+  if (Array.isArray(notes) && notes.length > 0) {
+    const t = notes[0]?.text || '';
+    return t.split('\n')[0];
+  }
+  return 'Payment';
+}
 
 const REPO_ROOT = '/Users/michael/Projects/SAMS';
 const args = process.argv.slice(2);
@@ -136,20 +176,89 @@ async function main() {
 
   // Construct post-state for dues mirror
   const duesPost = { ...duesPre };
+  const scheduledAmount = Number(duesPre.scheduledAmount || 0);
+  if (!scheduledAmount) {
+    throw new Error('Pre-state mismatch: dues doc has no scheduledAmount; cannot derive status canonically.');
+  }
+  const txIsoDay = txDateToIsoDay(txPre.date);
+  const txDescPrefix = txNotesFirstLine(txPre.notes);
+
   const newPayments = payments.map((p) => p ? { ...p } : p);
-  // m8 (Q3.3) gains MOVE_AMOUNT_CENTAVOS basePaid
+
+  // ── m_to (Q3.3, payments[8]) gains MOVE_AMOUNT_CENTAVOS basePaid ────────────
   const m8 = { ...(newPayments[MOVE_TO_MONTH_INDEX] || {}) };
   const m8BasePost = (m8.basePaid || 0) + MOVE_AMOUNT_CENTAVOS;
   const m8PenPost = m8.penaltyPaid || 0;
   m8.basePaid = m8BasePost;
   m8.amount = m8BasePost + m8PenPost; // amount = basePaid + penaltyPaid by convention
+  // Re-derive paid/status canonically (mirror unifiedPaymentWrapper.js §2185-2291)
+  const m8Derived = deriveStatusAndPaid(m8BasePost, m8PenPost, scheduledAmount);
+  m8.status = m8Derived.status;
+  m8.paid = m8Derived.paid;
+  // Notes: append a new entry for the step-a transfer, mirroring canonical createNotesEntry
+  // shape. Idempotent: skip append if existing array already contains an entry tagged for
+  // this tx routed to (Q3 Month 3/3).
+  const m8NotesPre = getNotesArray(m8.notes);
+  const m8RoutingTag = `(Q${MOVE_TO_QUARTER_NUM} Month ${MOVE_TO_MONTH_IN_QUARTER}/3)`;
+  const m8AlreadyHasStepAEntry = m8NotesPre.some((n) => n && n.transactionId === TX_ID
+    && typeof n.text === 'string' && n.text.endsWith(m8RoutingTag));
+  let m8NotesPost = m8NotesPre;
+  if (!m8AlreadyHasStepAEntry) {
+    const m8NewEntry = createNotesEntry({
+      transactionId: TX_ID,
+      timestamp: txIsoDay,
+      text: `${txDescPrefix}\nTxnID: ${TX_ID} ${m8RoutingTag}`,
+      amount: MOVE_AMOUNT_CENTAVOS,
+      basePaid: MOVE_AMOUNT_CENTAVOS,
+      penaltyPaid: 0
+    });
+    m8NotesPost = [...m8NotesPre, m8NewEntry];
+  }
+  m8.notes = m8NotesPost;
   newPayments[MOVE_TO_MONTH_INDEX] = m8;
-  // m9 (Q4.1) loses MOVE_AMOUNT_CENTAVOS basePaid
+
+  // ── m_from (Q4.1, payments[9]) loses MOVE_AMOUNT_CENTAVOS basePaid ──────────
   const m9 = { ...(newPayments[MOVE_FROM_MONTH_INDEX] || {}) };
   const m9BasePost = (m9.basePaid || 0) - MOVE_AMOUNT_CENTAVOS;
   const m9PenPost = m9.penaltyPaid || 0;
+  if (m9BasePost < 0) {
+    throw new Error(`Post-state mismatch: m_from basePaid would go negative (pre=${m9.basePaid}c, move=${MOVE_AMOUNT_CENTAVOS}c).`);
+  }
   m9.basePaid = m9BasePost;
   m9.amount = m9BasePost + m9PenPost;
+  const m9Derived = deriveStatusAndPaid(m9BasePost, m9PenPost, scheduledAmount);
+  m9.status = m9Derived.status;
+  m9.paid = m9Derived.paid;
+  // Notes: find existing entry for this tx with non-zero remaining base; update its amount
+  // and basePaid to reflect the post-step-a remainder. If the move consumed the entire
+  // entry (rare for unit 106 — its pre-state amount 987868c > MOVE_AMOUNT 426930c), remove
+  // it from the array. Idempotent: re-runs are no-ops because the entry's amount will
+  // already match the post-state.
+  const m9NotesPre = getNotesArray(m9.notes);
+  const m9RemainingFromTx = Math.max(0, (m9.basePaid || 0)); // residual base attributed to this tx slot
+  const stepAEntryIdx = m9NotesPre.findIndex((n) => n && n.transactionId === TX_ID);
+  let m9NotesPost = [...m9NotesPre];
+  if (stepAEntryIdx === -1) {
+    // No matching entry — script invariant is that pre-state had one. Don't crash if
+    // running on already-corrected data; just leave notes untouched.
+    console.error(`[step a] WARN: m_from notes[] has no entry for tx ${TX_ID}; leaving notes untouched.`);
+  } else {
+    const existingEntry = m9NotesPre[stepAEntryIdx];
+    const remainingBaseForEntry = (existingEntry.basePaid || existingEntry.amount || 0) - MOVE_AMOUNT_CENTAVOS;
+    if (remainingBaseForEntry <= 0) {
+      // Entire allocation moved out of this month — drop the entry.
+      m9NotesPost.splice(stepAEntryIdx, 1);
+    } else {
+      // Reduce the existing entry's amount/basePaid to reflect the remainder.
+      const updatedEntry = {
+        ...existingEntry,
+        amount: remainingBaseForEntry + (existingEntry.penaltyPaid || 0),
+        basePaid: remainingBaseForEntry
+      };
+      m9NotesPost[stepAEntryIdx] = updatedEntry;
+    }
+  }
+  m9.notes = m9NotesPost;
   newPayments[MOVE_FROM_MONTH_INDEX] = m9;
   duesPost.payments = newPayments;
 
@@ -177,7 +286,14 @@ async function main() {
     },
     expected_effects: {
       Q3_3_closes: m8BasePost === 1202031,
-      Q4_1_becomes_partial: m9BasePost === 560938
+      Q4_1_becomes_partial: m9BasePost === 560938,
+      // Task 3.5 — paid/status/notes are now re-derived canonically
+      m8_status_post: m8.status,
+      m8_paid_post: m8.paid,
+      m8_notes_count_post: (m8.notes || []).length,
+      m9_status_post: m9.status,
+      m9_paid_post: m9.paid,
+      m9_notes_count_post: (m9.notes || []).length
     }
   };
 
