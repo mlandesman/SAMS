@@ -79,9 +79,12 @@ const UNIT_CONFIGS = {
       moveToMonthIndex: 8,
       expectedAllocationAmount: 264656
     },
-    b: { billDocId: '2026-Q1', newCurrentChargeCentavos: 105000, expectedExistingBasePaid: 95000, surplusCreditCentavos: 0, notes: 'Stage 3 Task 3.4-102 step b — water Q1 2026 currentCharge restoration; assessed 105000 > existing basePaid 95000; under-paid by $100 (this $100 becomes a real water-Q1 remaining base after restoration).' },
-    b2: { billDocId: '2026-Q2', newCurrentChargeCentavos: 220000, expectedExistingBasePaid: 220000, surplusCreditCentavos: 0, notes: 'Stage 3 Task 3.4-102 step b2 — water Q2 2026 currentCharge restoration; assessed value 220000 matches existing basePaid; no surplus.' },
-    c: { billDocId: '2026-Q1', newPenaltyPaidCentavos: 1527, expectedExistingPenaltyPaid: 25100, refundCentavos: 23573, notes: 'Stage 3 Task 3.4-102 step c — water Q1 2026 over-paid penalty reconciliation; penaltyPaid reduced from 25100 to 1527 centavos to match assessed penaltyAmount; refund $235.73 to creditBalance.' }
+    b: { billDocId: '2026-Q1', newCurrentChargeCentavos: 105000, expectedExistingBasePaid: 95000, surplusCreditCentavos: 0, surplusSource: 'waterBills', notes: 'Stage 3 Task 3.4-102 step b — water Q1 2026 currentCharge restoration; assessed 105000 > existing basePaid 95000; under-paid by $100 (this $100 becomes a real water-Q1 remaining base after restoration).' },
+    b2: { billDocId: '2026-Q2', newCurrentChargeCentavos: 220000, expectedExistingBasePaid: 220000, surplusCreditCentavos: 0, surplusSource: 'waterBills', notes: 'Stage 3 Task 3.4-102 step b2 — water Q2 2026 currentCharge restoration; assessed value 220000 matches existing basePaid; no surplus.' },
+    // Pass 2: source changed from 'waterBills' to 'correction' per Manager adjudication.
+    // 'correction' is in standalonesSources (statementDataService.js:2214) — entries absorb into SoA chronological,
+    // dropping SoA by the credit amount alongside UPC net. This avoids the Pass 1 compensation pair on unit 102.
+    c: { billDocId: '2026-Q1', newPenaltyPaidCentavos: 1527, expectedExistingPenaltyPaid: 25100, refundCentavos: 23573, refundSource: 'correction', notes: 'Stage 3 Task 3.4-102 step c (Pass 2) — water Q1 2026 over-paid penalty reconciliation; penaltyPaid reduced from 25100 to 1527 centavos to match assessed penaltyAmount; refund $235.73 to creditBalance via source=correction (Pass 2 change from waterBills) so SoA chronological absorbs the entry symmetrically with UPC net.' }
   },
   '105': {
     b: { billDocId: '2026-Q1', newCurrentChargeCentavos: 45000, expectedExistingBasePaid: 115000, surplusCreditCentavos: 70000, notes: 'Stage 3 Task 3.4-105 step b — water Q1 2026 currentCharge restoration; over-payment $700.00 surplus to credit.' }
@@ -243,6 +246,7 @@ async function stepB(billDocIdKey, stepKey) {
     surplusCreditCentavos, source: 'waterBills', notes
   };
 
+  const surplusSource = cfgB.surplusSource || 'waterBills';
   if (APPLY) {
     // 1. Write currentCharge via canonical service path
     const res = await waterBillsService.setUnitCurrentCharge(
@@ -253,13 +257,13 @@ async function stepB(billDocIdKey, stepKey) {
     if (surplusCreditCentavos > 0) {
       const txnId = `task3-4-${UNIT_ID}-step-${stepKey}-${Date.now()}-${randomSuffix(4)}`;
       const cr = await creditService.updateCreditBalance(
-        CLIENT_ID, UNIT_ID, surplusCreditCentavos, txnId, notes, 'waterBills'
+        CLIENT_ID, UNIT_ID, surplusCreditCentavos, txnId, notes, surplusSource
       );
       summary.updateCreditBalanceResult = cr;
     }
-    console.error(`[${UNIT_ID}/${stepKey}] APPLY: currentCharge -> ${newCurrentChargeCentavos}c${willForce ? ' (forced)' : ''}; credit +${surplusCreditCentavos}c (source=waterBills)`);
+    console.error(`[${UNIT_ID}/${stepKey}] APPLY: currentCharge -> ${newCurrentChargeCentavos}c${willForce ? ' (forced)' : ''}; credit +${surplusCreditCentavos}c (source=${surplusSource})`);
   } else {
-    console.error(`[${UNIT_ID}/${stepKey}] DRY: would set currentCharge=${newCurrentChargeCentavos}c (force=${willForce}); credit +${surplusCreditCentavos}c`);
+    console.error(`[${UNIT_ID}/${stepKey}] DRY: would set currentCharge=${newCurrentChargeCentavos}c (force=${willForce}); credit +${surplusCreditCentavos}c (source=${surplusSource})`);
   }
   await writeReport(stepKey, summary);
 }
@@ -284,6 +288,7 @@ async function stepC() {
     refundCentavos, source: 'waterBills', notes
   };
 
+  const refundSource = cfgC.refundSource || 'waterBills';
   if (APPLY) {
     // Penalty-paid write: no canonical service guard exists for this field; direct Firestore write is acceptable.
     await billRef.update({
@@ -294,13 +299,13 @@ async function stepC() {
     if (refundCentavos > 0) {
       const txnId = `task3-4-${UNIT_ID}-step-c-${Date.now()}-${randomSuffix(4)}`;
       const cr = await creditService.updateCreditBalance(
-        CLIENT_ID, UNIT_ID, refundCentavos, txnId, notes, 'waterBills'
+        CLIENT_ID, UNIT_ID, refundCentavos, txnId, notes, refundSource
       );
       summary.updateCreditBalanceResult = cr;
     }
-    console.error(`[${UNIT_ID}/c] APPLY: ${billDocId}.penaltyPaid ${expectedExistingPenaltyPaid}c -> ${newPenaltyPaidCentavos}c; credit +${refundCentavos}c`);
+    console.error(`[${UNIT_ID}/c] APPLY: ${billDocId}.penaltyPaid ${expectedExistingPenaltyPaid}c -> ${newPenaltyPaidCentavos}c; credit +${refundCentavos}c (source=${refundSource})`);
   } else {
-    console.error(`[${UNIT_ID}/c] DRY: would set ${billDocId}.penaltyPaid=${newPenaltyPaidCentavos}c; refund +${refundCentavos}c to credit`);
+    console.error(`[${UNIT_ID}/c] DRY: would set ${billDocId}.penaltyPaid=${newPenaltyPaidCentavos}c; refund +${refundCentavos}c to credit (source=${refundSource})`);
   }
   await writeReport('c', summary);
 }
@@ -352,12 +357,16 @@ async function main() {
     case 'c':
       await stepC();
       break;
-    case 'd':
+    case 'd': {
       if (!Number.isFinite(RESIDUAL_CENTAVOS) || RESIDUAL_CENTAVOS <= 0) {
         throw new Error('Step d requires --residual-centavos <positive integer> (Q4 unposted-penalty value pre-step-a)');
       }
-      await creditOnlyStep('d', 'hoaDues', RESIDUAL_CENTAVOS, RUNTIME_STEP_NOTES['d']);
+      // Pass 2 source override: unit 102 uses 'correction' (admin-class; absorbs into SoA chronological)
+      // instead of 'hoaDues' (non-admin) per Manager adjudication, to avoid the Pass 1 compensation pair.
+      const dSource = UNIT_ID === '102' ? 'correction' : 'hoaDues';
+      await creditOnlyStep('d', dSource, RESIDUAL_CENTAVOS, RUNTIME_STEP_NOTES['d']);
       break;
+    }
     case 'e':
       if (!Number.isFinite(RESIDUAL_CENTAVOS)) {
         throw new Error('Step e requires --residual-centavos <integer> (measured residual after a, a-prime, b, c, d)');
