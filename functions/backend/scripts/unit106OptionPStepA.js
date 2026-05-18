@@ -35,9 +35,9 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { getNotesArray, createNotesEntry } from '../../shared/utils/formatUtils.js';
+import { getProdAwareDb, confirmProd } from './lib/prodAwareDb.js';
 
 const CLIENT_ID = 'AVII';
 const UNIT_ID = '106';
@@ -92,16 +92,30 @@ const REPO_ROOT = '/Users/michael/Projects/SAMS';
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
 const DRY = args.includes('--dry-mode') || !APPLY;
+const IS_PROD = args.includes('--prod');
 
-const OUT_PATH = path.join(REPO_ROOT, `test-results/unit106-option-p-step-a-${APPLY ? 'apply' : 'dry'}.json`);
+const OUT_PATH = path.join(
+  REPO_ROOT,
+  `test-results/unit106-option-p-step-a-${IS_PROD ? 'prod-' : ''}${APPLY ? 'apply' : 'dry'}.json`
+);
 
 async function main() {
   if (APPLY && DRY) {
     throw new Error('Cannot pass both --dry-mode and --apply.');
   }
-  console.error(`[step a] mode = ${APPLY ? 'APPLY' : 'DRY'}`);
+  console.error(`[step a] mode = ${APPLY ? 'APPLY' : 'DRY'}${IS_PROD ? ' [PROD]' : ''}`);
 
-  const db = await getDb();
+  const { db, env, projectId } = await getProdAwareDb({ isProd: IS_PROD });
+  console.error(`[step a] env=${env} projectId=${projectId}`);
+
+  // For --prod --apply, require an explicit confirmation phrase from the operator.
+  if (IS_PROD && APPLY) {
+    const ok = await confirmProd('APPLY-TO-PROD-UNIT-106-STEP-A');
+    if (!ok) {
+      console.error('[step a] Prod confirmation failed — aborting.');
+      process.exit(3);
+    }
+  }
 
   // Read pre-state
   const txRef = db.collection('clients').doc(CLIENT_ID)

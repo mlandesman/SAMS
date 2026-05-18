@@ -22,8 +22,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
+import { getProdAwareDb, confirmProd } from './lib/prodAwareDb.js';
 
 const CLIENT_ID = 'AVII';
 const UNIT_ID = '106';
@@ -38,6 +38,7 @@ function getArg(flag, fallback = null) {
 const STEP = getArg('--step', null);
 const APPLY = args.includes('--apply');
 const DRY = args.includes('--dry-mode') || !APPLY;
+const IS_PROD = args.includes('--prod');
 const RESIDUAL_CENTAVOS = Number(getArg('--residual-centavos', 0));
 
 if (!STEP) {
@@ -124,16 +125,29 @@ if (STEP === 'e' && RESIDUAL_CENTAVOS === 0) {
   console.error("[step e] warning: --residual-centavos is 0; this is a valid no-op only if the harness measurement showed zero residual.");
 }
 
-const OUT_PATH = path.join(REPO_ROOT, `test-results/unit106-option-p-step-${STEP}-${APPLY ? 'apply' : 'dry'}.json`);
+const OUT_PATH = path.join(
+  REPO_ROOT,
+  `test-results/unit106-option-p-step-${STEP}-${IS_PROD ? 'prod-' : ''}${APPLY ? 'apply' : 'dry'}.json`
+);
 
 function randomSuffix(len = 9) {
   return Math.random().toString(36).slice(2, 2 + len);
 }
 
 async function main() {
-  console.error(`[${STEP}] mode = ${APPLY ? 'APPLY' : 'DRY'}; amount = ${stepDef.amountCentavos}c; source = ${stepDef.source}; type = ${stepDef.type}`);
+  console.error(`[${STEP}] mode = ${APPLY ? 'APPLY' : 'DRY'}${IS_PROD ? ' [PROD]' : ''}; amount = ${stepDef.amountCentavos}c; source = ${stepDef.source}; type = ${stepDef.type}`);
 
-  const db = await getDb();
+  const { db, env, projectId } = await getProdAwareDb({ isProd: IS_PROD });
+  console.error(`[${STEP}] env=${env} projectId=${projectId}`);
+
+  // For --prod --apply, require an explicit confirmation phrase.
+  if (IS_PROD && APPLY) {
+    const ok = await confirmProd(`APPLY-TO-PROD-UNIT-106-STEP-${STEP.toUpperCase()}`);
+    if (!ok) {
+      console.error(`[${STEP}] Prod confirmation failed — aborting.`);
+      process.exit(3);
+    }
+  }
 
   // Read pre-state from creditBalances doc
   const creditDocRef = db.collection('clients').doc(CLIENT_ID)
