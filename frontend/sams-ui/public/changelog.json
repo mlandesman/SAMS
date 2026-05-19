@@ -7,6 +7,15 @@
         {
           "type": "fix",
           "issues": [
+            "333",
+            "334",
+            "335"
+          ],
+          "text": "Closed GH#333 AVII unit 106 production-payment blocker. Stage 3 corrections applied across 7 AVII units (101 / 102 / 105 / 106 / 201 / 203 / 204); $30,177 closing payment for unit 106 unblocked. Added write-path invariant guards in PenaltyRecalculationService (penaltyAmount >= penaltyPaid; skip-on-fail with diagnostic) and waterBillsService.setUnitCurrentCharge (currentCharge >= existingBasePaid; explicit force flag with diagnostic for legitimate data corrections). Patched HOA dues mirror step-a priority reallocation to atomically update paid / status / notes fields. Restored Prod-to-Prod backup restore script parity with the Dev path (recursive purge before import to avoid merge-residue from documents created after the backup snapshot). Produced a deterministic unified-replay wrapper with hard-coded per-step delta checks for future AVII-wide corrections. DR follow-ups filed as GH#334 (Firebase managed backups + PITR + Storage soft delete adoption) and GH#335 (auditLogger.js admin.app() probe for offline-script-with-named-app contexts)."
+        },
+        {
+          "type": "fix",
+          "issues": [
             "306"
           ],
           "text": "Added an actionable Reconciliation Health dashboard card (show-only-on-issues) with priority messaging, stale uncleared bank transaction detail tooltip, acceptedAt-based last reconciliation date, and matching Firestore index coverage for reconciliation and mobile stored statement queries."
