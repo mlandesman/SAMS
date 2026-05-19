@@ -187,10 +187,13 @@ async function fixUnit(db, unitId, cfg, env = 'dev') {
   const mToPre = { ...(payments[cfg.moveToMonthIndex] || {}) };
   const mFromPre = { ...(payments[cfg.moveFromMonthIndex] || {}) };
 
-  const activeSentinel = (IS_PROD && cfg.sentinelPostStepAOnly && SENTINEL_MODE !== 'pre-preview')
+  const usePostStepAOnlySentinel =
+    process.env.SAMS_UNIFIED_WRAPPER_PRE_CLOSING === 'yes'
+    || (IS_PROD && cfg.sentinelPostStepAOnly && SENTINEL_MODE !== 'pre-preview');
+  const activeSentinel = usePostStepAOnlySentinel && cfg.sentinelPostStepAOnly
     ? cfg.sentinelPostStepAOnly
     : cfg.sentinel;
-  const expectedMFromNotesCountPost = (IS_PROD && cfg.expectedMFromNotesCountPostProd && SENTINEL_MODE !== 'pre-preview')
+  const expectedMFromNotesCountPost = usePostStepAOnlySentinel && cfg.expectedMFromNotesCountPostProd
     ? cfg.expectedMFromNotesCountPostProd
     : cfg.expectedMFromNotesCountPost;
 
