@@ -425,11 +425,18 @@ async function runScriptStep(stepDef, db, runLog) {
   }
 
   const preCredit = stepDef.unitId ? await readUnitCredit(db, stepDef.unitId) : null;
+  // Under --prod, inner scripts trigger an interactive confirmProd typed-phrase
+  // gate. Default spawnSync stdio is 'pipe' for all three streams, so the user's
+  // keyboard input can't reach the child and confirmProd times out. Inherit
+  // stdio for --prod --apply only so the user can type the phrase. Post-apply
+  // verification reads the apply report file from disk (not stdout), so
+  // inherit doesn't break verification.
   const applyRun = runNode(
     stepDef.script,
     [...scriptArgs, '--apply'],
     `${stepDef.label} (apply)`,
-    envExtra
+    envExtra,
+    IS_PROD ? { stdio: 'inherit' } : {}
   );
   rec.apply = { exitCode: applyRun.exitCode, reportPath: stepDef.reportRel('apply') };
   if (applyRun.exitCode !== 0) {
