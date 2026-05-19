@@ -179,16 +179,22 @@ Disaster recovery for Production (includes users).
 ```
 
 **⚠️ CRITICAL WARNING:**
-- This **OVERWRITES ALL Production data**
-- Includes users collection
-- Cannot be undone
+- Purges `clients` and `auditLogs` (recursive), then imports from GCS backup
+- Firestore import **merges**: documents created after the backup outside purged trees may **remain**
+- Storage mirror folders use `rsync -d` (stale files removed); `imports/` is additive
+- Includes users collection; pre-flight export saved to GCS for rollback reference
+- Cannot be undone easily
 - Requires typing project ID and "RESTORE PRODUCTION" to confirm
 
+**Entry point:** `scripts/backup/backup-menu.sh` option 6 (there is no `scripts/sams_backup.sh`)
+
 **What it does:**
-1. Imports all Firestore collections (including users)
-2. Imports users collection separately
-3. Syncs Storage files
-4. Logs all operations
+1. Pre-flight Firestore export to GCS
+2. Recursive purge of `clients` and `auditLogs`
+3. Import all collections, wait for completion
+4. Import users collection separately, wait for completion
+5. Sync Storage files (after Firestore completes)
+6. Logs all operations
 
 **Example:**
 ```bash
