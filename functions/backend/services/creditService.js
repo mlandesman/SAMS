@@ -156,15 +156,21 @@ class CreditService {
       
       console.log(`✅ [CREDIT] Updated credit balance for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
       
-      // Write audit log
-      await writeAuditLog({
-        module: 'credit',
-        action: 'update_balance',
-        parentPath: `clients/${clientId}/units`,
-        docId: 'creditBalances',
-        friendlyName: `Unit ${unitId} Credit Balance`,
-        notes: `${notes} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${normalizedSource} | Transaction: ${transactionId}`
-      });
+      // Stage 3 / Task 3.2c — auditLog write commented out for Prod replay window.
+      // auditLogger uses default getDb() which fails (and prints stack trace)
+      // under prod-aware-named-app db injection. Credit history `notes` field
+      // already carries the full audit narrative for each entry.
+      // Stage 3 closeout follow-up: (1) restore this writeAuditLog call once
+      // auditLogger.js is refactored for prod-aware db injection; (2) backfill
+      // missing auditLog collection entries from credit history `notes`.
+      // await writeAuditLog({
+      //   module: 'credit',
+      //   action: 'update_balance',
+      //   parentPath: `clients/${clientId}/units`,
+      //   docId: 'creditBalances',
+      //   friendlyName: `Unit ${unitId} Credit Balance`,
+      //   notes: `${notes} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${normalizedSource} | Transaction: ${transactionId}`
+      // });
       
       return {
         success: true,
