@@ -242,12 +242,37 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
         penaltyDays: config.penaltyDays
       }
     });
-    
+
+    // §5.1 guard (UPC in-memory preview path) — penalty cannot be lower than what's
+    // already been paid against it. If the recalculated value would drop below
+    // penaltyPaidCentavos, ratchet up to that floor and log a structured diagnostic.
+    // This mirrors the invariant the deployed shared/backend Firestore writers
+    // enforce in PenaltyRecalculationService (the WRITE-path skip-on-fail variant).
+    // Without this guard, a downward recalc would propagate into totalRemainingCentavos
+    // and UPC payoff display via this preview path.
+    const hoaPenaltyPaidCentavos = hoaBill.penaltyPaidCentavos || 0;
+    let hoaFinalPenalty = result.penaltyAmount;
+    if (hoaFinalPenalty < hoaPenaltyPaidCentavos) {
+      logWarn(
+        `⛔ [PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW] HOA penalty recalc would lower penaltyAmount below penaltyPaid; ratcheting up to floor`,
+        {
+          diagnosticCode: 'PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW',
+          module: 'hoa',
+          billId: hoaBill.billId,
+          currentPenaltyAmount: hoaBill.penaltyCentavos || 0,
+          penaltyPaidCentavos: hoaPenaltyPaidCentavos,
+          proposedNewPenaltyAmount: result.penaltyAmount,
+          ratchetedToCentavos: hoaPenaltyPaidCentavos
+        }
+      );
+      hoaFinalPenalty = hoaPenaltyPaidCentavos;
+    }
+
     // Update the penalty in the original bill
-    if (result.penaltyAmount !== hoaBill.penaltyCentavos) {
-      hoaBill.penaltyCentavos = result.penaltyAmount;
+    if (hoaFinalPenalty !== hoaBill.penaltyCentavos) {
+      hoaBill.penaltyCentavos = hoaFinalPenalty;
       hoaPenaltiesUpdated++;
-      totalPenaltyAmount += result.penaltyAmount;
+      totalPenaltyAmount += hoaFinalPenalty;
     }
   }
   
@@ -274,12 +299,31 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
         penaltyDays: config.penaltyDays
       }
     });
-    
+
+    // §5.1 guard (UPC in-memory preview path) — same invariant as the HOA path above.
+    const waterPenaltyPaidCentavos = waterBill.penaltyPaidCentavos || 0;
+    let waterFinalPenalty = result.penaltyAmount;
+    if (waterFinalPenalty < waterPenaltyPaidCentavos) {
+      logWarn(
+        `⛔ [PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW] Water penalty recalc would lower penaltyAmount below penaltyPaid; ratcheting up to floor`,
+        {
+          diagnosticCode: 'PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW',
+          module: 'water',
+          billId: waterBill.billId,
+          currentPenaltyAmount: waterBill.penaltyCentavos || 0,
+          penaltyPaidCentavos: waterPenaltyPaidCentavos,
+          proposedNewPenaltyAmount: result.penaltyAmount,
+          ratchetedToCentavos: waterPenaltyPaidCentavos
+        }
+      );
+      waterFinalPenalty = waterPenaltyPaidCentavos;
+    }
+
     // Update the penalty in the original bill
-    if (result.penaltyAmount !== waterBill.penaltyCentavos) {
-      waterBill.penaltyCentavos = result.penaltyAmount;
+    if (waterFinalPenalty !== waterBill.penaltyCentavos) {
+      waterBill.penaltyCentavos = waterFinalPenalty;
       waterPenaltiesUpdated++;
-      totalPenaltyAmount += result.penaltyAmount;
+      totalPenaltyAmount += waterFinalPenalty;
     }
   }
   
