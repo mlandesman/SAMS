@@ -6,7 +6,7 @@
 
 ## Production Status: v1.21.0
 **Deployed:** April 13, 2026 | **Prior:** v1.19.1 (Mar 20). v1.21.0 includes BANK-RECON, BUGFIX-ONBOARD sweep items, and post-deploy stabilization/hotfix follow-through merged on `main`. Apr 14 follow-up validated backup exports in production and identified final UX/timeout hardening tasks.
-**Merged After v1.21.0 (deployment pending next release tag):** Backend localization closeout (#315, PR #317) and desktop non-admin localization parity (#316, PR #320).
+**Merged After v1.21.0 (deployment pending next release tag):** Backend localization closeout (#315, PR #317) and desktop non-admin localization parity (#316, PR #320). GH#333 production-payment blocker closure for AVII Unit 106 (PR #336, merged 2026-05-19) — Stage 1 backend invariant guards (`PenaltyRecalculationService`, `waterBillsService.setUnitCurrentCharge`, `generateUPCData` UPC preview) and Stage 3 Prod data correction across 7 AVII units; backup-restore parity patch on `restore-prod.sh`. Carry-forward issues GH#334 (DR hardening) and GH#335 (auditLogger named-app handling) remain open.
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)

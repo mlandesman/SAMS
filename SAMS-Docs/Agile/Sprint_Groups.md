@@ -3,6 +3,26 @@
 
 ## Sprint Catalog (Current and Historical Status)
 
+### ✅ Sprint GH333-UPC-UNIT-106-CLOSURE: AVII Unit 106 Production-Payment Blocker — Stage 1 + Stage 3 (Complete)
+*Resolve a held $30,177.99 closing payment for AVII Unit 106 caused by UPC vs SoA divergence; correct Prod data drift on 7 AVII units; harden deployed runtime against the same drift class.*
+
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **333** | [Bug] UPC not applying funds to prior periods to pay HOA bills | critical | 12-20h | ✅ CLOSED (PR #336 squash-merged to `main` as `7f0b543`) |
+| **334** | DR hardening — Firebase managed backups, PITR, and Storage soft delete | medium | TBD | 🟡 OPEN (carry-forward) |
+| **335** | Enhance auditLogger.js to probe admin.app() and bypass cleanly under named-app contexts | medium | TBD | 🟡 OPEN (carry-forward) |
+
+**Theme**: Resolve production payment blocker on AVII Unit 106; fix shared finance services that allow impossible states; align Prod-to-Prod restore script with Dev path.
+**Risk**: High at sprint start (Prod data writes; multi-unit impact; no validated wrapper). Mitigated by two-pass Dev replay + sentinel gates + interactive `confirmProd` typed-phrase guard.
+**Dependencies**: None — self-contained sprint.
+**Status**: ✅ COMPLETE (May 19, 2026) — merged to `main` via PR #336.
+**Interrupt Policy**: None during sprint; one Manager-induced unit-102 sequencing error during Prod replay was recovered via Path-A Prod restore + corrected unified-wrapper sequence.
+**Carry-forward Tech Debt**: GH#334 (DR hardening — broader forensic-tooling refactor); GH#335 (auditLogger named-app handling).
+**Release Note**: Pending changelog entry references GH#333 / GH#334 / GH#335; ready for deployment finalization. Stage 1 backend invariant guards (`PenaltyRecalculationService`, `waterBillsService.setUnitCurrentCharge`, `generateUPCData` UPC in-memory preview path) prevent recurrence; Stage 3 corrected drift on 7 AVII units (101 / 102 / 105 / 106 / 201 / 203 / 204).
+**Archive**: `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_GH333_UPC_Unit_106_Closure_2026-05-19/`
+
+---
+
 ### ✅ Sprint LOCALIZATION-DESKTOP-NONADMIN: Desktop Non-Admin Localization Parity (Complete)
 *Carry backend localization contract (PR #314 + PR #317) into desktop non-admin experience without expanding backend scope*
 
