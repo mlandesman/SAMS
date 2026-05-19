@@ -28,9 +28,9 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { getNotesArray, createNotesEntry } from '../../shared/utils/formatUtils.js';
+import { getProdAwareDb, confirmProd } from './lib/prodAwareDb.js';
 import waterBillsServiceDefault from '../services/waterBillsService.js';
 import creditServiceDefault from '../services/creditService.js';
 
@@ -49,7 +49,11 @@ const UNIT_ID = getArg('--unit', null);
 const STEP = getArg('--step', null);
 const APPLY = args.includes('--apply');
 const DRY = args.includes('--dry-mode') || !APPLY;
+const IS_PROD = args.includes('--prod');
 const RESIDUAL_CENTAVOS = Number(getArg('--residual-centavos', 0));
+
+/** @type {{ db: import('firebase-admin/firestore').Firestore, env: string, projectId: string, isProd: boolean }} */
+let scriptCtx = { db: null, env: 'dev', projectId: null, isProd: false };
 
 if (!UNIT_ID || !STEP) {
   console.error('Usage: --unit <id> --step <a|a-prime|b|b2|c|d|e|f> [--dry-mode|--apply] [--residual-centavos N]');
@@ -177,7 +181,13 @@ function quarterTagFromMonthIndex(monthIndex0Based) {
 }
 
 async function writeReport(stepKey, summary) {
-  const OUT_PATH = path.join(REPO_ROOT, `test-results/unit${UNIT_ID}-task-3-4-step-${stepKey}-${APPLY ? 'apply' : 'dry'}.json`);
+  const prodTag = scriptCtx.isProd ? 'prod-' : '';
+  const OUT_PATH = path.join(
+    REPO_ROOT,
+    `test-results/unit${UNIT_ID}-task-3-4-step-${stepKey}-${prodTag}${APPLY ? 'apply' : 'dry'}.json`
+  );
+  summary.env = scriptCtx.env;
+  summary.projectId = scriptCtx.projectId;
   await fs.writeFile(OUT_PATH, JSON.stringify(summary, null, 2), 'utf8');
   console.error(`[${UNIT_ID}/${stepKey}] wrote ${APPLY ? 'apply' : 'dry'} report → ${OUT_PATH}`);
 }
@@ -334,7 +344,7 @@ async function stepB(billDocIdKey, stepKey) {
   const { billDocId, newCurrentChargeCentavos, expectedExistingBasePaid, surplusCreditCentavos, notes } = cfgB;
 
   // Pre-flight: validate pre-state
-  const db = await getDb();
+  const db = scriptCtx.db;
   const billRef = db.collection('clients').doc(CLIENT_ID).collection('projects').doc('waterBills').collection('bills').doc(billDocId);
   const billDoc = await billRef.get();
   if (!billDoc.exists) throw new Error(`Bill ${billDocId} not found`);
@@ -357,14 +367,14 @@ async function stepB(billDocIdKey, stepKey) {
   if (APPLY) {
     // 1. Write currentCharge via canonical service path
     const res = await waterBillsService.setUnitCurrentCharge(
-      CLIENT_ID, billDocId, UNIT_ID, newCurrentChargeCentavos, { force: willForce }
+      CLIENT_ID, billDocId, UNIT_ID, newCurrentChargeCentavos, { force: willForce }, db
     );
     summary.setUnitCurrentChargeResult = res;
     // 2. Issue surplus to credit (if any) via canonical creditService
     if (surplusCreditCentavos > 0) {
       const txnId = `task3-4-${UNIT_ID}-step-${stepKey}-${Date.now()}-${randomSuffix(4)}`;
       const cr = await creditService.updateCreditBalance(
-        CLIENT_ID, UNIT_ID, surplusCreditCentavos, txnId, notes, surplusSource
+        CLIENT_ID, UNIT_ID, surplusCreditCentavos, txnId, notes, surplusSource, db
       );
       summary.updateCreditBalanceResult = cr;
     }
@@ -380,7 +390,7 @@ async function stepC() {
   if (!cfgC) throw new Error(`Unit ${UNIT_ID} has no step-c configuration`);
   const { billDocId, newPenaltyPaidCentavos, expectedExistingPenaltyPaid, refundCentavos, notes } = cfgC;
 
-  const db = await getDb();
+  const db = scriptCtx.db;
   const billRef = db.collection('clients').doc(CLIENT_ID).collection('projects').doc('waterBills').collection('bills').doc(billDocId);
   const billDoc = await billRef.get();
   if (!billDoc.exists) throw new Error(`Bill ${billDocId} not found`);
@@ -406,7 +416,7 @@ async function stepC() {
     if (refundCentavos > 0) {
       const txnId = `task3-4-${UNIT_ID}-step-c-${Date.now()}-${randomSuffix(4)}`;
       const cr = await creditService.updateCreditBalance(
-        CLIENT_ID, UNIT_ID, refundCentavos, txnId, notes, refundSource
+        CLIENT_ID, UNIT_ID, refundCentavos, txnId, notes, refundSource, db
       );
       summary.updateCreditBalanceResult = cr;
     }
@@ -427,7 +437,7 @@ async function creditOnlyStep(stepKey, source, amountCentavos, notesFn) {
   if (APPLY) {
     const txnId = `task3-4-${UNIT_ID}-step-${stepKey}-${Date.now()}-${randomSuffix(4)}`;
     const cr = await creditService.updateCreditBalance(
-      CLIENT_ID, UNIT_ID, amountCentavos, txnId, notes, source
+      CLIENT_ID, UNIT_ID, amountCentavos, txnId, notes, source, scriptCtx.db
     );
     summary.updateCreditBalanceResult = cr;
     console.error(`[${UNIT_ID}/${stepKey}] APPLY: credit +${amountCentavos}c (source=${source})`);
@@ -442,8 +452,20 @@ async function creditOnlyStep(stepKey, source, amountCentavos, notesFn) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.error(`[unit ${UNIT_ID} step ${STEP}] mode = ${APPLY ? 'APPLY' : 'DRY'}`);
-  const db = await getDb();
+  console.error(`[unit ${UNIT_ID} step ${STEP}] mode = ${APPLY ? 'APPLY' : 'DRY'}${IS_PROD ? ' [PROD]' : ''}`);
+
+  const { db, env, projectId } = await getProdAwareDb({ isProd: IS_PROD });
+  scriptCtx = { db, env, projectId, isProd: IS_PROD };
+  console.error(`[unit ${UNIT_ID} step ${STEP}] env=${env} projectId=${projectId}`);
+
+  if (IS_PROD && APPLY) {
+    const stepLabel = STEP.toUpperCase().replace(/-/g, '-');
+    const ok = await confirmProd(`APPLY-TO-PROD-UNIT-${UNIT_ID}-STEP-${stepLabel}`);
+    if (!ok) {
+      console.error(`[unit ${UNIT_ID} step ${STEP}] Prod confirmation failed — aborting.`);
+      process.exit(3);
+    }
+  }
 
   switch (STEP) {
     case 'a':

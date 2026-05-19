@@ -214,4 +214,24 @@ describe('waterBillsService.setUnitCurrentCharge — §5.3 write guard', () => {
     );
     expect(guardCalls).toHaveLength(0);
   });
+
+  test('applies the same §5.3 guard when an external db is injected (Prod-replay path)', async () => {
+    await expect(
+      waterBillsService.setUnitCurrentCharge('AVII', '2026-Q1', '106', 0, {}, mockDb)
+    ).rejects.toMatchObject({
+      code: 'WATERBILLS_CURRENTCHARGE_GUARD_BLOCKED',
+      diagnostic: {
+        existingBasePaid: 178974,
+        proposedNewCurrentCharge: 0
+      }
+    });
+    expect(writtenUpdates).toHaveLength(0);
+
+    writtenUpdates = [];
+    const forced = await waterBillsService.setUnitCurrentCharge(
+      'AVII', '2026-Q1', '106', 0, { force: true }, mockDb
+    );
+    expect(forced).toMatchObject({ written: true, forced: true });
+    expect(writtenUpdates).toHaveLength(1);
+  });
 });

@@ -2,85 +2,125 @@
 /**
  * prodSentinelCheck.js
  *
- * Stage 3 / Task 3.5 Phase 5 — Production sentinel pre-flight.
+ * Stage 3 / Task 3.5 Phase 5 + Task 3.2c — Production sentinel pre-flight.
  *
- * Analogous to `pass2SentinelCheck.js` but reads PRODUCTION via ADC. Verifies
- * that Prod is in the expected pre-Stage-3 state before any Production-replay
- * is dispatched.
+ * Verifies Prod is in the expected pre-Stage-3 state before any Production-replay.
+ * READ-ONLY (ZERO Prod writes).
  *
- *   1. Unit 106 dues mirror `payments[8].basePaid` reads `775101` centavos
- *      (pre-Option-P value).
- *   2. Unit 106 creditBalance (history-derived) reads `0`.
- *   3. All 9 non-106 units' `water:2026-Q1` has `currentCharge=0` with
- *      `basePaid > 0` (the AVII-wide water-bill drift confirmed in Task 3.3).
- *
- * Exits 0 if all assertions PASS. Exits non-zero if any FAIL.
- *
- * READ-ONLY (sentinel verification, ZERO writes against Prod).
+ * Assertions:
+ *   a1 — unit 106 dues payments[8].basePaid === 775101 (pre-Option-P)
+ *   a2 — unit 106 credit balance (history-derived) === 0
+ *   a3 — all 9 non-106 units: water:2026-Q1 currentCharge=0 with basePaid>0
+ *   a4 — unit 102 pre-step-a dues mirror (step-a sentinel values from Pass 2)
+ *   a5 — unit 203 pre-step-a dues mirror
+ *   a6 — units 102/203 Q3-Q4 ordering violation present (pre-Stage-3 shape)
  *
  * Usage:
  *   export SAMS_PROD_OK=yes
  *   NODE_OPTIONS=--experimental-vm-modules node backend/scripts/prodSentinelCheck.js --prod
- *
- *   # For Dev sanity-check (no env var needed):
- *   NODE_OPTIONS=--experimental-vm-modules node backend/scripts/prodSentinelCheck.js
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import { getProdAwareDb } from './lib/prodAwareDb.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
+import { getNow } from '../../shared/services/DateService.js';
 
 const REPO_ROOT = '/Users/michael/Projects/SAMS';
+const CLIENT_ID = 'AVII';
+const FISCAL_YEAR = 2026;
 
 const args = process.argv.slice(2);
 const IS_PROD = args.includes('--prod');
-const OUT_PATH = path.join(REPO_ROOT, `test-results/${IS_PROD ? 'prod' : 'dev'}-sentinel-pre-flight-2026-05-17.json`);
+const dateTag = '2026-05-19';
+const OUT_PATH = path.join(
+  REPO_ROOT,
+  `test-results/${IS_PROD ? 'prod' : 'dev'}-sentinel-pre-flight-${dateTag}.json`
+);
+
+// Pre-step-a dues mirror sentinels (from Pass 2 apply logs on freshly-restored Dev = Prod shape)
+const STEP_A_UNITS = {
+  '102': {
+    moveToMonthIndex: 8,
+    moveFromMonthIndex: 9,
+    mToBasePaidExpected: 441019,
+    mFromBasePaidExpected: 264656,
+    mToStatusExpected: 'paid', // month fully paid at m8 but quarter-level ordering still violated
+    mFromStatusExpected: 'partial',
+    scheduledAmount: 518846
+  },
+  '203': {
+    moveToMonthIndex: 8,
+    moveFromMonthIndex: 9,
+    mToBasePaidExpected: 619470,
+    mFromBasePaidExpected: 157500,
+    mToStatusExpected: 'paid',
+    mFromStatusExpected: 'partial',
+    scheduledAmount: 619470
+  }
+};
+
+async function readDuesMonth(db, unitId, monthIndex) {
+  const snap = await db.collection('clients').doc(CLIENT_ID)
+    .collection('units').doc(unitId)
+    .collection('dues').doc(String(FISCAL_YEAR))
+    .get();
+  if (!snap.exists) return { exists: false };
+  const data = snap.data();
+  const p = data?.payments?.[monthIndex] || null;
+  return {
+    exists: true,
+    scheduledAmount: Number(data.scheduledAmount || 0),
+    payment: p
+  };
+}
 
 async function main() {
   const { db, env, projectId } = await getProdAwareDb({ isProd: IS_PROD });
   console.error(`[sentinel] env=${env} projectId=${projectId}`);
 
   const results = {
-    metadata: { env, projectId, generatedAt: new Date().toISOString() },
+    metadata: { env, projectId, generatedAt: getNow().toISOString(), isProd: IS_PROD },
     assertions: [],
     allPass: true
   };
 
-  // Assertion 1: unit 106 dues payments[8].basePaid === 775101 (pre-Option-P)
-  const duesSnap = await db.collection('clients').doc('AVII')
-    .collection('units').doc('106').collection('dues').doc('2026').get();
-  const dues = duesSnap.exists ? duesSnap.data() : null;
-  const m9BasePaid = dues?.payments?.[8]?.basePaid;
+  // a1: unit 106 dues payments[8].basePaid === 775101
+  const dues106 = await readDuesMonth(db, '106', 8);
+  const m106BasePaid = dues106.payment?.basePaid;
   results.assertions.push({
     id: 'a1_unit106_m9_basePaid',
     expected: 775101,
-    actual: m9BasePaid,
-    pass: m9BasePaid === 775101,
-    description: 'Unit 106 dues mirror payments[8].basePaid (Q3 month 9 = Q3.3) must equal pre-Option-P value 775101c ($7,751.01). If this fails on Prod, Stage 3 may have already been partially applied to Prod.'
+    actual: m106BasePaid,
+    pass: m106BasePaid === 775101,
+    description: 'Unit 106 dues payments[8].basePaid (Q3.3) must equal pre-Option-P 775101c.'
   });
 
-  // Assertion 2: unit 106 creditBalance (history-derived) === 0
-  const creditSnap = await db.collection('clients').doc('AVII')
+  // a2: unit 106 credit balance === 0
+  const creditSnap = await db.collection('clients').doc(CLIENT_ID)
     .collection('units').doc('creditBalances').get();
   const creditAll = creditSnap.exists ? creditSnap.data() : {};
-  const unit106Credit = creditAll?.['106'] || { history: [] };
-  const unit106Balance = getCreditBalance(unit106Credit);
+  const unit106Balance = getCreditBalance(creditAll?.['106'] || { history: [] });
   results.assertions.push({
     id: 'a2_unit106_creditBalance',
     expected: 0,
     actual: unit106Balance,
     pass: unit106Balance === 0,
-    description: 'Unit 106 credit balance derived from history must be 0 (pre-Stage-3).'
+    description: 'Unit 106 credit balance derived from history must be 0.'
   });
 
-  // Assertion 3: all 9 non-106 units have water:2026-Q1 currentCharge=0 with basePaid>0
-  const waterSnap = await db.collection('clients').doc('AVII')
+  // a3: non-106 water Q1 drift
+  const waterSnap = await db.collection('clients').doc(CLIENT_ID)
     .collection('projects').doc('waterBills')
     .collection('bills').doc('2026-Q1').get();
   const waterQ1 = waterSnap.exists ? waterSnap.data() : null;
   const non106Units = ['101', '102', '103', '104', '105', '201', '202', '203', '204'];
-  const a3 = { id: 'a3_non106_water_q1_drift', expected: 'all 9 with currentCharge=0 AND basePaid>0', perUnit: [], pass: true };
+  const a3 = {
+    id: 'a3_non106_water_q1_drift',
+    expected: 'all 9 with currentCharge=0 AND basePaid>0',
+    perUnit: [],
+    pass: true
+  };
   for (const u of non106Units) {
     const ub = waterQ1?.bills?.units?.[u] || {};
     const cc = Number(ub.currentCharge || 0);
@@ -91,6 +131,59 @@ async function main() {
   }
   results.assertions.push(a3);
 
+  // a4/a5/a6: units 102 and 203 pre-step-a dues + ordering
+  for (const [unitId, cfg] of Object.entries(STEP_A_UNITS)) {
+    const dues = await readDuesMonth(db, unitId, cfg.moveToMonthIndex);
+    const mTo = dues.payment || {};
+    const duesFrom = await readDuesMonth(db, unitId, cfg.moveFromMonthIndex);
+    const mFrom = duesFrom.payment || {};
+
+    const aDues = {
+      id: `a4_unit${unitId}_pre_step_a_dues`,
+      unitId,
+      expected: {
+        mToBasePaid: cfg.mToBasePaidExpected,
+        mFromBasePaid: cfg.mFromBasePaidExpected,
+        mToStatus: cfg.mToStatusExpected,
+        mFromStatus: cfg.mFromStatusExpected
+      },
+      actual: {
+        mToBasePaid: mTo.basePaid,
+        mFromBasePaid: mFrom.basePaid,
+        mToStatus: mTo.status,
+        mFromStatus: mFrom.status
+      },
+      pass:
+        mTo.basePaid === cfg.mToBasePaidExpected
+        && mFrom.basePaid === cfg.mFromBasePaidExpected
+        && (mTo.status === cfg.mToStatusExpected || mTo.status == null)
+        && (mFrom.status === cfg.mFromStatusExpected || mFrom.status == null),
+      description: `Unit ${unitId} pre-step-a dues mirror sentinel (Pass 2 pre-state).`
+    };
+    results.assertions.push(aDues);
+
+    const sched = dues.scheduledAmount || cfg.scheduledAmount;
+    const mToPartial = (mTo.basePaid || 0) > 0 && (mTo.basePaid || 0) < sched;
+    const mFromHasPayment = (mFrom.basePaid || 0) > 0 || (mFrom.penaltyPaid || 0) > 0;
+    // Unit 102: classic shape — Q3.3 month partial + Q4.1 has payment (ordering violation).
+    // Unit 203: Q3.3 month is fully paid at mirror level but Q4.1 still carries the
+    // mis-allocated payment (step-a moves it); sentinel checks payment presence, not partial mTo.
+    const orderingPass = unitId === '102'
+      ? (mToPartial && mFromHasPayment)
+      : (mFromHasPayment && mTo.basePaid === cfg.mToBasePaidExpected);
+
+    results.assertions.push({
+      id: `a6_unit${unitId}_q3_q4_ordering`,
+      unitId,
+      expected: unitId === '102'
+        ? 'Q3 month partial AND Q4 month has payment'
+        : 'Q4 month has payment while Q3.3 basePaid matches pre-step-a sentinel',
+      actual: { mToPartial, mFromHasPayment, scheduledAmount: sched, mToBasePaid: mTo.basePaid },
+      pass: orderingPass,
+      description: `Unit ${unitId} pre-Stage-3 Q3/Q4 shape for step-a correction.`
+    });
+  }
+
   results.allPass = results.assertions.every((a) => a.pass);
   await fs.writeFile(OUT_PATH, JSON.stringify(results, null, 2), 'utf8');
 
@@ -98,7 +191,12 @@ async function main() {
   for (const a of results.assertions) {
     console.error(`  [${a.pass ? 'PASS' : 'FAIL'}] ${a.id}`);
     if (a.id === 'a3_non106_water_q1_drift') {
-      for (const pu of a.perUnit) console.error(`     unit ${pu.unit}: currentCharge=${pu.currentCharge} basePaid=${pu.basePaid} -> ${pu.pass ? 'PASS' : 'FAIL'}`);
+      for (const pu of a.perUnit) {
+        console.error(`     unit ${pu.unit}: currentCharge=${pu.currentCharge} basePaid=${pu.basePaid} -> ${pu.pass ? 'PASS' : 'FAIL'}`);
+      }
+    } else if (a.actual && typeof a.actual === 'object' && !Array.isArray(a.actual)) {
+      console.error(`     expected: ${JSON.stringify(a.expected)}`);
+      console.error(`     actual:   ${JSON.stringify(a.actual)}`);
     } else {
       console.error(`     expected: ${a.expected}, actual: ${a.actual}`);
     }

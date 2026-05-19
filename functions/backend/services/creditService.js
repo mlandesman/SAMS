@@ -92,16 +92,18 @@ class CreditService {
    * @param {string} transactionId - Transaction identifier for audit trail
    * @param {string} notes - Description of the change (use 'notes' plural for consistency)
    * @param {string} source - Source module (e.g., 'waterBills', 'hoaDues', 'admin')
+   * @param {import('firebase-admin/firestore').Firestore|null} [dbOverride=null] - Optional Firestore
+   *   instance (e.g. Prod ADC). When omitted, uses dev `getDb()`.
    * @returns {Promise<Object>} Update result
    */
-  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source) {
+  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source, dbOverride = null) {
     try {
       if (!isAllowedCreditSource(source)) {
         throw new Error(buildInvalidCreditSourceMessage(source));
       }
       const normalizedSource = normalizeCreditSource(source);
 
-      const db = await getDb();
+      const db = dbOverride || await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
       // NEW IMPLEMENTATION: Update simplified structure

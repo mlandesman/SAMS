@@ -1376,10 +1376,18 @@ class WaterBillsService {
    * @param {number} newCurrentChargeCentavos - INTEGER CENTAVOS.
    * @param {object} [options]
    * @param {boolean} [options.force=false] - Bypass the invariant with a warning log.
+   * @param {import('firebase-admin/firestore').Firestore|null} [dbOverride=null] - Optional Firestore
+   *   instance (e.g. Prod ADC). When omitted, uses the service singleton's dev `getDb()` path.
    * @returns {Promise<{written: boolean, forced: boolean, existingBasePaid: number, newCurrentCharge: number}>}
    */
-  async setUnitCurrentCharge(clientId, billDocId, unitId, newCurrentChargeCentavos, options = {}) {
-    await this._initializeDb();
+  async setUnitCurrentCharge(clientId, billDocId, unitId, newCurrentChargeCentavos, options = {}, dbOverride = null) {
+    let db;
+    if (dbOverride) {
+      db = dbOverride;
+    } else {
+      await this._initializeDb();
+      db = this.db;
+    }
 
     const force = options.force === true;
     const proposedNewCurrentCharge = validateCentavos(
@@ -1387,7 +1395,7 @@ class WaterBillsService {
       `setUnitCurrentCharge[${clientId}/${billDocId}/${unitId}]`
     );
 
-    const billRef = this.db
+    const billRef = db
       .collection('clients').doc(clientId)
       .collection('projects').doc('waterBills')
       .collection('bills').doc(billDocId);

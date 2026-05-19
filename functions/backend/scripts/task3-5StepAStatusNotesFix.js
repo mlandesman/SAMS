@@ -31,9 +31,9 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { getNotesArray, createNotesEntry } from '../../shared/utils/formatUtils.js';
+import { getProdAwareDb, confirmProd } from './lib/prodAwareDb.js';
 
 const CLIENT_ID = 'AVII';
 const FISCAL_YEAR = 2026;
@@ -46,7 +46,11 @@ function getArg(flag, fallback = null) {
 }
 const APPLY = args.includes('--apply');
 const DRY = args.includes('--dry-mode') || !APPLY;
+const IS_PROD = args.includes('--prod');
 const UNIT_FILTER = getArg('--unit', null);
+// post = require post-step-a basePaid sentinels (Dev after Pass 2, or Prod after step-a apply).
+// pre-preview = read-only Prod preview before replay; reports inconsistency without failing sentinel.
+const SENTINEL_MODE = getArg('--sentinel-mode', 'post');
 
 if (APPLY && args.includes('--dry-mode')) {
   console.error('Cannot pass both --dry-mode and --apply');
@@ -69,12 +73,18 @@ const UNIT_FIXES = {
     moveToMonthIndex: 8,   // Q3.3 = payments[8]
     moveAmountCentavos: 426930, // $4,269.30
     sentinel: {
-      mToBasePaidExpected: 1202031,    // m9 (Q3.3): full month
-      mFromBasePaidExpected: 1202031   // m10 (Q4.1): full month after closing payment
+      mToBasePaidExpected: 1202031,    // Dev after Pass 2 + closing payment on m10
+      mFromBasePaidExpected: 1202031
+    },
+    // Prod replay: run task 3.5 fix after step a (and a'–f) but BEFORE owner closing payment
+    sentinelPostStepAOnly: {
+      mToBasePaidExpected: 1202031,
+      mFromBasePaidExpected: 560938
     },
     moveToRoutingTag: '(Q3 Month 3/3)',
-    expectedMToNotesCountPost: 3, // pre 2 + 1 new
-    expectedMFromNotesCountPost: 2,
+    expectedMToNotesCountPost: 3,
+    expectedMFromNotesCountPost: 2, // Dev (with closing payment on m10)
+    expectedMFromNotesCountPostProd: 1, // Prod replay before closing: one reduced tx note
     mFromEntryPolicy: { kind: 'reduce', expectedBasePaid: 560938, expectedAmount: 560938, expectedPenaltyPaid: 0 }
   },
   '102': {
@@ -152,7 +162,7 @@ function deepStrip(value) {
 // Per-unit fixer
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fixUnit(db, unitId, cfg) {
+async function fixUnit(db, unitId, cfg, env = 'dev') {
   const txRef = db.collection('clients').doc(CLIENT_ID).collection('transactions').doc(cfg.txId);
   const duesRef = db.collection('clients').doc(CLIENT_ID).collection('units').doc(unitId)
     .collection('dues').doc(String(FISCAL_YEAR));
@@ -177,17 +187,60 @@ async function fixUnit(db, unitId, cfg) {
   const mToPre = { ...(payments[cfg.moveToMonthIndex] || {}) };
   const mFromPre = { ...(payments[cfg.moveFromMonthIndex] || {}) };
 
+  const activeSentinel = (IS_PROD && cfg.sentinelPostStepAOnly && SENTINEL_MODE !== 'pre-preview')
+    ? cfg.sentinelPostStepAOnly
+    : cfg.sentinel;
+  const expectedMFromNotesCountPost = (IS_PROD && cfg.expectedMFromNotesCountPostProd && SENTINEL_MODE !== 'pre-preview')
+    ? cfg.expectedMFromNotesCountPostProd
+    : cfg.expectedMFromNotesCountPost;
+
+  // Pre-step-a sentinel values (Prod before replay) — from Pass 2 apply logs
+  const PRE_STEP_A_SENTINEL = {
+    '106': { mTo: 775101, mFrom: 987868 },
+    '102': { mTo: 441019, mFrom: 264656 },
+    '203': { mTo: 619470, mFrom: 157500 }
+  };
+  const preSentinel = PRE_STEP_A_SENTINEL[unitId];
+
   // ── Sentinel: confirm post-step-a basePaid values match Pass 2 expectations ──
-  if (Number(mToPre.basePaid || 0) !== cfg.sentinel.mToBasePaidExpected) {
-    throw new Error(
-      `Sentinel FAIL: unit ${unitId} payments[${cfg.moveToMonthIndex}].basePaid expected ${cfg.sentinel.mToBasePaidExpected}c, got ${mToPre.basePaid}c. ` +
-      `Either Pass 2 hasn't been applied or the source state isn't what we expected.`
+  const mToBaseActual = Number(mToPre.basePaid || 0);
+  const mFromBaseActual = Number(mFromPre.basePaid || 0);
+  const postSentinelOk =
+    mToBaseActual === activeSentinel.mToBasePaidExpected
+    && mFromBaseActual === activeSentinel.mFromBasePaidExpected;
+  const preSentinelOk = preSentinel
+    ? mToBaseActual === preSentinel.mTo && mFromBaseActual === preSentinel.mFrom
+    : false;
+
+  let sentinelPreview = null;
+  let sentinelOk = false;
+  if (SENTINEL_MODE === 'pre-preview') {
+    sentinelPreview = {
+      mode: 'pre-preview',
+      postStepAExpected: activeSentinel,
+      preStepAMatches: preSentinelOk,
+      postStepAMatches: postSentinelOk,
+      actual: { mToBasePaid: mToBaseActual, mFromBasePaid: mFromBaseActual },
+      mToPaidStatus: { paid: mToPre.paid, status: mToPre.status },
+      mFromPaidStatus: { paid: mFromPre.paid, status: mFromPre.status },
+      inconsistencyPresent:
+        mToPre.paid === false || mToPre.status === 'partial'
+        || mFromPre.paid === false || mFromPre.status === 'partial'
+    };
+    sentinelOk = true;
+    console.error(
+      `[${unitId}] pre-preview: preStepA=${preSentinelOk} postStepA=${postSentinelOk} ` +
+      `mTo ${mToPre.paid}/${mToPre.status} mFrom ${mFromPre.paid}/${mFromPre.status} ` +
+      `inconsistency=${sentinelPreview.inconsistencyPresent}`
     );
-  }
-  if (Number(mFromPre.basePaid || 0) !== cfg.sentinel.mFromBasePaidExpected) {
+  } else if (!postSentinelOk) {
     throw new Error(
-      `Sentinel FAIL: unit ${unitId} payments[${cfg.moveFromMonthIndex}].basePaid expected ${cfg.sentinel.mFromBasePaidExpected}c, got ${mFromPre.basePaid}c.`
+      `Sentinel FAIL: unit ${unitId} payments[${cfg.moveToMonthIndex}].basePaid expected ${activeSentinel.mToBasePaidExpected}c, got ${mToPre.basePaid}c; ` +
+      `payments[${cfg.moveFromMonthIndex}].basePaid expected ${activeSentinel.mFromBasePaidExpected}c, got ${mFromPre.basePaid}c. ` +
+      `Either step-a hasn't been applied yet or the source state isn't what we expected.`
     );
+  } else {
+    sentinelOk = true;
   }
 
   // ── Build canonical post-state ─────────────────────────────────────────────
@@ -283,10 +336,12 @@ async function fixUnit(db, unitId, cfg) {
   const summary = {
     unit: unitId,
     mode: APPLY ? 'APPLY' : 'DRY',
+    sentinelMode: SENTINEL_MODE,
     capturedAt: getNow().toISOString(),
     scheduledAmount,
     txId: cfg.txId,
-    sentinelOk: true,
+    sentinelOk,
+    sentinelPreview,
     pre: {
       mTo: deepStrip(mToPre),
       mFrom: deepStrip(mFromPre)
@@ -308,10 +363,10 @@ async function fixUnit(db, unitId, cfg) {
     },
     expected: {
       mToNotesCountPost: cfg.expectedMToNotesCountPost,
-      mFromNotesCountPost: cfg.expectedMFromNotesCountPost
+      mFromNotesCountPost: expectedMFromNotesCountPost
     },
     verificationOk: mToNotesPost.length === cfg.expectedMToNotesCountPost
-                    && mFromNotesPost.length === cfg.expectedMFromNotesCountPost
+                    && mFromNotesPost.length === expectedMFromNotesCountPost
   };
 
   // Verbose dry-mode output
@@ -331,8 +386,9 @@ async function fixUnit(db, unitId, cfg) {
     console.error(`[${unitId}] DRY — no write.`);
   }
 
-  const preFile = path.join(REPO_ROOT, `test-results/task-3-5-unit${unitId}-pre-2026-05-17.json`);
-  const postFile = path.join(REPO_ROOT, `test-results/task-3-5-unit${unitId}-${APPLY ? 'post' : 'dry'}-2026-05-17.json`);
+  const dateTag = env === 'prod' ? '2026-05-19' : '2026-05-17';
+  const preFile = path.join(REPO_ROOT, `test-results/task-3-5-unit${unitId}-pre-${dateTag}.json`);
+  const postFile = path.join(REPO_ROOT, `test-results/task-3-5-unit${unitId}-${APPLY ? 'post' : 'dry'}-${dateTag}.json`);
   await fs.writeFile(preFile, JSON.stringify(summary.pre, null, 2), 'utf8');
   await fs.writeFile(postFile, JSON.stringify(summary, null, 2), 'utf8');
   return summary;
@@ -343,14 +399,28 @@ async function fixUnit(db, unitId, cfg) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.error(`[task 3.5] mode = ${APPLY ? 'APPLY' : 'DRY'}`);
-  const db = await getDb();
+  console.error(`[task 3.5] mode = ${APPLY ? 'APPLY' : 'DRY'}${IS_PROD ? ' [PROD]' : ''}`);
+
+  const { db, env, projectId } = await getProdAwareDb({ isProd: IS_PROD });
+  console.error(`[task 3.5] env=${env} projectId=${projectId}`);
+
+  if (IS_PROD && APPLY) {
+    const ok = await confirmProd('APPLY-TO-PROD-TASK-3-5-STEP-A-STATUS-NOTES-FIX');
+    if (!ok) {
+      console.error('[task 3.5] Prod confirmation failed — aborting.');
+      process.exit(3);
+    }
+  }
+
   const unitIds = UNIT_FILTER ? [UNIT_FILTER] : Object.keys(UNIT_FIXES);
 
   const out = {
     metadata: {
       generatedAt: getNow().toISOString(),
       mode: APPLY ? 'APPLY' : 'DRY',
+      env,
+      projectId,
+      isProd: IS_PROD,
       clientId: CLIENT_ID,
       fiscalYear: FISCAL_YEAR,
       unitsProcessed: unitIds
@@ -365,7 +435,7 @@ async function main() {
       continue;
     }
     try {
-      const s = await fixUnit(db, unitId, cfg);
+      const s = await fixUnit(db, unitId, cfg, env);
       out.units[unitId] = s;
     } catch (err) {
       console.error(`[${unitId}] FAILED:`, err && err.message);
@@ -375,7 +445,9 @@ async function main() {
     }
   }
 
-  const aggregatePath = path.join(REPO_ROOT, `test-results/task-3-5-aggregate-${APPLY ? 'apply' : 'dry'}-2026-05-17.json`);
+  const prodTag = IS_PROD ? 'prod-' : '';
+  const dateTag = IS_PROD ? '2026-05-19' : '2026-05-17';
+  const aggregatePath = path.join(REPO_ROOT, `test-results/task-3-5-aggregate-${prodTag}${APPLY ? 'apply' : 'dry'}-${dateTag}.json`);
   await fs.writeFile(aggregatePath, JSON.stringify(out, null, 2), 'utf8');
   console.error(`[task 3.5] wrote aggregate -> ${aggregatePath}`);
 }
