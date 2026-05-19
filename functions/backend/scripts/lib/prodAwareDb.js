@@ -107,9 +107,11 @@ export async function confirmProd(expectedPhrase) {
 
   return new Promise((resolve, reject) => {
     let buf = '';
+    let timeoutHandle = null;
     const onData = (chunk) => {
       buf += chunk.toString();
       if (buf.includes('\n')) {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
         process.stdin.removeListener('data', onData);
         process.stdin.pause();
         const typed = buf.split('\n')[0].trim();
@@ -127,7 +129,7 @@ export async function confirmProd(expectedPhrase) {
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', onData);
     process.stdin.resume();
-    setTimeout(() => {
+    timeoutHandle = setTimeout(() => {
       process.stdin.removeListener('data', onData);
       process.stdin.pause();
       console.error('[confirmProd] timeout waiting for confirmation; aborting.');
