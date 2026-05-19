@@ -455,6 +455,46 @@ export async function recalculatePenalties(params) {
       
       // Check if penalty changed
       const oldPenalty = bill.penaltyAmount || 0;
+      const currentPenaltyPaid = bill.penaltyPaid || 0;
+
+      // GUARD: refuse to emit a new penaltyAmount that is below penaltyPaid.
+      // Writing a lower value would create the impossible state
+      // penaltyPaid > penaltyAmount (observed on AVII unit 106 water:2026-Q2).
+      // The recalc service must not pre-empt the operator's data-correction
+      // choice (refund the over-paid amount vs upward-adjust the assessment),
+      // so we SKIP the write and emit a diagnostic warning. The bill's
+      // existing penaltyAmount is preserved so the caller persists no change.
+      if (billPenalty < currentPenaltyPaid) {
+        result.billsSkipped++;
+        if (!result.guardSkippedBills) {
+          result.guardSkippedBills = [];
+        }
+        result.guardSkippedBills.push({
+          billId: bill.billId,
+          currentPenaltyAmount: oldPenalty,
+          currentPenaltyPaid,
+          proposedNewPenaltyAmount: billPenalty
+        });
+        logWarn(
+          `⛔ [PENALTY_RECALC_GUARD_SKIPPED] Refusing penalty write that would create penaltyPaid > penaltyAmount`,
+          {
+            diagnosticCode: 'PENALTY_RECALC_GUARD_SKIPPED',
+            clientId,
+            moduleType,
+            billId: bill.billId,
+            currentPenaltyAmount: oldPenalty,
+            currentPenaltyPaid,
+            proposedNewPenaltyAmount: billPenalty
+          }
+        );
+        result.updatedBills.push({
+          ...bill,
+          penaltyAmount: oldPenalty,
+          totalAmount: (bill.currentCharge || 0) + oldPenalty
+        });
+        return;
+      }
+
       if (Math.abs(oldPenalty - billPenalty) > 1) {
         result.billsUpdated++;
         result.totalPenaltiesAdded += (billPenalty - oldPenalty);

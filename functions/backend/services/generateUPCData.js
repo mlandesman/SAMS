@@ -220,15 +220,16 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
   
   // Recalculate HOA penalties
   for (const hoaBill of rawData.hoaDues) {
-    // Skip if already paid
-    if (hoaBill.paidCentavos >= hoaBill.originalCentavos && hoaBill.originalCentavos > 0) {
+    // Skip only when HOA principal is fully covered.
+    // Do not use total paid here because penalty-heavy payments can mask unpaid base.
+    if ((hoaBill.basePaidCentavos || 0) >= hoaBill.originalCentavos && hoaBill.originalCentavos > 0) {
       continue;
     }
     
     // Map fields to what calculatePenaltyForBill expects
     const billForCalc = {
       currentCharge: hoaBill.originalCentavos || 0,
-      paidAmount: hoaBill.paidCentavos || 0,
+      paidAmount: hoaBill.basePaidCentavos || 0,
       penaltyAmount: hoaBill.penaltyCentavos || 0,
       dueDate: hoaBill.dueDate
     };
@@ -241,12 +242,37 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
         penaltyDays: config.penaltyDays
       }
     });
-    
+
+    // §5.1 guard (UPC in-memory preview path) — penalty cannot be lower than what's
+    // already been paid against it. If the recalculated value would drop below
+    // penaltyPaidCentavos, ratchet up to that floor and log a structured diagnostic.
+    // This mirrors the invariant the deployed shared/backend Firestore writers
+    // enforce in PenaltyRecalculationService (the WRITE-path skip-on-fail variant).
+    // Without this guard, a downward recalc would propagate into totalRemainingCentavos
+    // and UPC payoff display via this preview path.
+    const hoaPenaltyPaidCentavos = hoaBill.penaltyPaidCentavos || 0;
+    let hoaFinalPenalty = result.penaltyAmount;
+    if (hoaFinalPenalty < hoaPenaltyPaidCentavos) {
+      logWarn(
+        `⛔ [PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW] HOA penalty recalc would lower penaltyAmount below penaltyPaid; ratcheting up to floor`,
+        {
+          diagnosticCode: 'PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW',
+          module: 'hoa',
+          billId: hoaBill.billId,
+          currentPenaltyAmount: hoaBill.penaltyCentavos || 0,
+          penaltyPaidCentavos: hoaPenaltyPaidCentavos,
+          proposedNewPenaltyAmount: result.penaltyAmount,
+          ratchetedToCentavos: hoaPenaltyPaidCentavos
+        }
+      );
+      hoaFinalPenalty = hoaPenaltyPaidCentavos;
+    }
+
     // Update the penalty in the original bill
-    if (result.penaltyAmount !== hoaBill.penaltyCentavos) {
-      hoaBill.penaltyCentavos = result.penaltyAmount;
+    if (hoaFinalPenalty !== hoaBill.penaltyCentavos) {
+      hoaBill.penaltyCentavos = hoaFinalPenalty;
       hoaPenaltiesUpdated++;
-      totalPenaltyAmount += result.penaltyAmount;
+      totalPenaltyAmount += hoaFinalPenalty;
     }
   }
   
@@ -273,12 +299,31 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
         penaltyDays: config.penaltyDays
       }
     });
-    
+
+    // §5.1 guard (UPC in-memory preview path) — same invariant as the HOA path above.
+    const waterPenaltyPaidCentavos = waterBill.penaltyPaidCentavos || 0;
+    let waterFinalPenalty = result.penaltyAmount;
+    if (waterFinalPenalty < waterPenaltyPaidCentavos) {
+      logWarn(
+        `⛔ [PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW] Water penalty recalc would lower penaltyAmount below penaltyPaid; ratcheting up to floor`,
+        {
+          diagnosticCode: 'PENALTY_RECALC_GUARD_RATCHETED_UPC_PREVIEW',
+          module: 'water',
+          billId: waterBill.billId,
+          currentPenaltyAmount: waterBill.penaltyCentavos || 0,
+          penaltyPaidCentavos: waterPenaltyPaidCentavos,
+          proposedNewPenaltyAmount: result.penaltyAmount,
+          ratchetedToCentavos: waterPenaltyPaidCentavos
+        }
+      );
+      waterFinalPenalty = waterPenaltyPaidCentavos;
+    }
+
     // Update the penalty in the original bill
-    if (result.penaltyAmount !== waterBill.penaltyCentavos) {
-      waterBill.penaltyCentavos = result.penaltyAmount;
+    if (waterFinalPenalty !== waterBill.penaltyCentavos) {
+      waterBill.penaltyCentavos = waterFinalPenalty;
       waterPenaltiesUpdated++;
-      totalPenaltyAmount += result.penaltyAmount;
+      totalPenaltyAmount += waterFinalPenalty;
     }
   }
   
@@ -563,7 +608,9 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     }
     
     const originalCentavos = hoaBill.originalCentavos || 0;
-    const totalPaidCentavos = hoaBill.paidCentavos || 0; // Total paid (base + penalty combined)
+    const basePaidCentavos = hoaBill.basePaidCentavos || 0;
+    const penaltyPaidCentavos = hoaBill.penaltyPaidCentavos || 0;
+    const totalPaidCentavos = basePaidCentavos + penaltyPaidCentavos;
     let penaltyCentavos = hoaBill.penaltyCentavos || 0;
     
     // Handle penalty waiver
@@ -574,16 +621,11 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
       logDebug(`   🚫 Waived penalty for ${hoaBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
     }
     
-    // Calculate total due and remaining
-    const totalDueCentavos = originalCentavos + penaltyCentavos;
-    const totalRemainingCentavos = Math.max(0, totalDueCentavos - totalPaidCentavos);
-    
-    // Infer base vs penalty paid from total paid
-    // Payment applies to base first, then penalty
-    const basePaidCentavos = Math.min(totalPaidCentavos, originalCentavos);
+    // Calculate remaining from authoritative paid components
     const baseRemainingCentavos = Math.max(0, originalCentavos - basePaidCentavos);
-    const penaltyPaidCentavos = Math.max(0, totalPaidCentavos - originalCentavos);
     const penaltyRemainingCentavos = Math.max(0, penaltyCentavos - penaltyPaidCentavos);
+    const totalDueCentavos = originalCentavos + penaltyCentavos;
+    const totalRemainingCentavos = baseRemainingCentavos + penaltyRemainingCentavos;
     
     // Determine status based on total remaining
     let status;
@@ -1161,5 +1203,10 @@ export async function generateUPCDataForModal({
     generatedAt: upcData.generatedAt
   };
 }
+
+export const __testables = {
+  computePerBillRemaining,
+  recalculatePenaltiesForRawData
+};
 
 export default { generateUPCData, generateUPCDataForModal };

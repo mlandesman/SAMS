@@ -237,8 +237,9 @@ function restore_prod() {
     echo -e "${RED}════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "${RED}⚠️  CRITICAL WARNING:${NC}"
-    echo "  This will OVERWRITE ALL Production data!"
-    echo "  This includes users and cannot be undone!"
+    echo "  This PURGES clients/auditLogs, imports the backup, and syncs Storage."
+    echo "  Post-backup docs outside purged trees may remain (Firestore merge)."
+    echo "  Includes users. Cannot be undone easily!"
     echo ""
     
     cd "$SCRIPT_DIR"
