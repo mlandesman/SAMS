@@ -1,8 +1,8 @@
 {
   "releases": [
     {
-      "version": "pending",
-      "date": "pending",
+      "version": "2.0.2",
+      "date": "2026-05-20",
       "changes": [
         {
           "type": "fix",
