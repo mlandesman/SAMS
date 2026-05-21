@@ -10,6 +10,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
 import { isAllowedCreditSource, normalizeCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
+import { computeUserMessageForWrite } from '../../shared/utils/creditUserMessage.js';
 import admin from 'firebase-admin';
 
 class CreditService {
@@ -611,6 +612,12 @@ class CreditService {
         }
         updatedEntry.source = normalizeCreditSource(updates.source);
       }
+
+      updatedEntry.userMessage = computeUserMessageForWrite({
+        notes: updatedEntry.notes,
+        source: updatedEntry.source,
+        type: updatedEntry.type
+      });
       
       // Replace entry in history
       const newHistory = [...history];

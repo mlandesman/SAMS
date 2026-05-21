@@ -9,6 +9,7 @@
 
 import { getNow } from '../services/DateService.js';
 import { getCreditBalanceCentavos } from './hoaCreditTotals.js';
+import { computeUserMessageForWrite } from './creditUserMessage.js';
 
 /**
  * Calculate current credit balance from history entries.
@@ -75,6 +76,7 @@ export function createCreditHistoryEntry({
     amount,
     transactionId,
     notes: notesValue,  // Always use 'notes' (plural) for consistency
+    userMessage: computeUserMessageForWrite({ notes: notesValue, source, type }),
     type,
     timestamp: timestampValue,
     source
