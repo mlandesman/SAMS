@@ -128,7 +128,7 @@ export const recordDuesPayment = async (clientId, unitId, year, paymentData, dis
  * @param {string} [entryDate] - Optional date for the history entry (YYYY-MM-DD format)
  * @returns {Promise<object>} The result of the update
  */
-export const updateCreditBalance = async (clientId, unitId, year, creditBalance, notes, entryDate) => {
+export const updateCreditBalance = async (clientId, unitId, year, creditBalance, notes, entryDate, userMessage) => {
   try {
     // Use the same API base URL for consistency
     const API_BASE_URL = config.api.baseUrl;
@@ -160,6 +160,10 @@ export const updateCreditBalance = async (clientId, unitId, year, creditBalance,
       // Add entryDate if provided
       if (entryDate) {
         requestBody.entryDate = entryDate;
+      }
+
+      if (userMessage !== undefined && userMessage !== null) {
+        requestBody.userMessage = userMessage;
       }
       
       const response = await fetch(`${API_BASE_URL}/hoadues/${clientId}/credit/${unitId}/${year}`, {
@@ -308,7 +312,7 @@ export const deleteCreditHistoryEntry = async (clientId, unitId, entryId) => {
  * @param {string} [source='admin'] - Source of the entry
  * @returns {Promise<object>} Add result
  */
-export const addCreditHistoryEntry = async (clientId, unitId, amount, date, notes, source = 'admin') => {
+export const addCreditHistoryEntry = async (clientId, unitId, amount, date, notes, source = 'admin', userMessage) => {
   try {
     const API_BASE_URL = config.api.baseUrl;
     
@@ -342,7 +346,8 @@ export const addCreditHistoryEntry = async (clientId, unitId, amount, date, note
         date: date,
         transactionId: null, // Admin entries don't have transaction IDs
         note: notes,
-        source: source
+        source: source,
+        userMessage: userMessage
       })
     });
 
