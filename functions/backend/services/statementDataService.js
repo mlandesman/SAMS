@@ -18,6 +18,7 @@ import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
+import { resolveCreditUserMessage } from '../../shared/utils/creditUserMessage.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
@@ -2327,6 +2328,13 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               type: entryType, // 'credit_added' or 'credit_used' (inferred if missing)
               amount: entryAmountPesos, // In pesos: positive for deposits, negative for applied
               notes: entry.note || entry.notes || entry.description || '',
+              userMessage: resolveCreditUserMessage({
+                userMessage: entry.userMessage,
+                notes: entry.note || entry.notes || entry.description || '',
+                source: entry.source,
+                type: entryType
+              }),
+              source: entry.source || null,
               creditBefore: entry.creditBefore ? centavosToPesos(entry.creditBefore) : null,
               creditAfter: entry.creditAfter ? centavosToPesos(entry.creditAfter) : null
             });

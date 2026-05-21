@@ -330,8 +330,14 @@ function getQuarterFromDate(date) {
 }
 
 /**
- * Extract category from notes (HOA, Water, etc.)
+ * Extract category from notes (HOA, Water, etc.) or source metadata.
  */
+function getCategoryFromEntry(entry) {
+  if (entry?.source === 'hoaDues') return 'hoa';
+  if (entry?.source === 'waterBills') return 'water';
+  return getCategoryFromNotes(entry?.notes);
+}
+
 function getCategoryFromNotes(notes) {
   if (!notes) return 'other';
   const lowerNotes = notes.toLowerCase();
@@ -373,8 +379,8 @@ function collapseCreditEntries(entries) {
       ? entry.type 
       : (amount >= 0 ? 'credit_added' : 'credit_used');
     
-    // Get category from notes
-    const category = getCategoryFromNotes(entry.notes);
+    // Get category from source/notes for grouping (audit notes may be internal)
+    const category = getCategoryFromEntry(entry);
     
     // For starting_balance, don't group - keep as standalone
     if (entryType === 'starting_balance') {
@@ -434,6 +440,7 @@ function collapseCreditEntries(entries) {
       const year = groupedEntry.quarterInfo?.year || '';
       
       groupedEntry.notes = `${actionLabel} ${categoryLabel} (${monthRange} ${year}) - ${groupedEntry.count} entries`;
+      groupedEntry.userMessage = groupedEntry.notes;
     }
     return groupedEntry;
   });
@@ -1986,7 +1993,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 ? formatCurrency(Math.abs(amount), true)
                 : formatCurrency(amount);
               
-              let notes = entry.notes || '';
+              let notes = entry.userMessage || '';
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }
