@@ -98,19 +98,18 @@ describe('creditUserMessage contract', () => {
       expect(entry.userMessage).toBe('Overpayment of $50.00 added to credit');
     });
 
-    test('persists distinct userMessage when notes are internal', () => {
-      const internalNotes = 'HOA dues payment PAY-101-20250717-25 (overpayment +$50.00, credit used $20.00)';
+    test('honors explicit userMessage override on write', () => {
       const entry = createCreditHistoryEntry({
-        amount: 3000,
-        transactionId: 'txn-2',
-        notes: internalNotes,
+        amount: 1000,
+        transactionId: 'txn-3',
+        notes: 'Internal audit note with PAY-999',
         type: 'credit_added',
-        source: 'hoaDues'
+        source: 'admin',
+        userMessage: 'Custom owner message'
       });
 
-      expect(entry.notes).toBe(internalNotes);
-      expect(entry.userMessage).toBe('Credit added from HOA dues payment');
-      expect(entry.userMessage).not.toContain('PAY-');
+      expect(entry.userMessage).toBe('Custom owner message');
+      expect(entry.notes).toContain('PAY-999');
     });
   });
 

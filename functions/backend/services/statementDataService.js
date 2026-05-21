@@ -2224,7 +2224,12 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             creditAdjustments.push({
               type: 'credit_adjustment',
               date: entryDate,
-              description: entry.notes || 'Credit Adjustment',
+              description: resolveCreditUserMessage({
+                userMessage: entry.userMessage,
+                notes: entry.notes || '',
+                source: entry.source,
+                type: entry.type || (amountCentavos >= 0 ? 'credit_added' : 'credit_used')
+              }) || 'Credit Adjustment',
               // Admin credit adjustment: affects net position once (reduces balance)
               // Preserve sign from credit history (positive credit added)
               amount: amountPesos,
