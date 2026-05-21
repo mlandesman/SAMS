@@ -45,6 +45,7 @@ export function getCreditBalanceDollars(creditDoc) {
  * @param {string} [params.type='payment'] - Optional: 'payment', 'credit_added', 'credit_used', 'adjustment'
  * @param {string|Date} [params.timestamp] - Optional: ISO string or Date (defaults to now)
  * @param {string} [params.source='unifiedPayment'] - Optional: Source module (e.g., 'unifiedPayment', 'waterBills', 'hoaDues', 'admin')
+ * @param {string} [params.userMessage] - Optional: explicit client-facing message (otherwise computed)
  * @returns {Object} Clean history entry
  */
 export function createCreditHistoryEntry({
@@ -54,7 +55,8 @@ export function createCreditHistoryEntry({
   note,  // Backward compatibility - will be mapped to 'notes'
   type = 'payment',
   timestamp,
-  source = 'unifiedPayment'
+  source = 'unifiedPayment',
+  userMessage
 }) {
   // Use getNow() for timestamp if not provided
   let timestampValue;
@@ -70,13 +72,17 @@ export function createCreditHistoryEntry({
   
   // Use 'notes' if provided, otherwise fall back to 'note' for backward compatibility
   const notesValue = notes || note || '';
+  const explicitUserMessage = typeof userMessage === 'string' ? userMessage.trim() : '';
+  const resolvedUserMessage = explicitUserMessage
+    ? explicitUserMessage
+    : computeUserMessageForWrite({ notes: notesValue, source, type });
   
   return {
     id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     amount,
     transactionId,
     notes: notesValue,  // Always use 'notes' (plural) for consistency
-    userMessage: computeUserMessageForWrite({ notes: notesValue, source, type }),
+    userMessage: resolvedUserMessage,
     type,
     timestamp: timestampValue,
     source

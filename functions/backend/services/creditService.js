@@ -10,7 +10,6 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
 import { isAllowedCreditSource, normalizeCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
-import { computeUserMessageForWrite } from '../../shared/utils/creditUserMessage.js';
 import admin from 'firebase-admin';
 
 class CreditService {
@@ -97,7 +96,7 @@ class CreditService {
    *   instance (e.g. Prod ADC). When omitted, uses dev `getDb()`.
    * @returns {Promise<Object>} Update result
    */
-  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source, dbOverride = null) {
+  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source, dbOverride = null, userMessage = undefined) {
     try {
       if (!isAllowedCreditSource(source)) {
         throw new Error(buildInvalidCreditSourceMessage(source));
@@ -133,7 +132,8 @@ class CreditService {
         transactionId,
         notes,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
-        source: normalizedSource
+        source: normalizedSource,
+        userMessage
       });
       
       // Initialize or update history array
@@ -259,7 +259,7 @@ class CreditService {
    * @param {string} source - Source module
    * @returns {Promise<Object>} Operation result
    */
-  async addCreditHistoryEntry(clientId, unitId, amount, date, transactionId, note, source) {
+  async addCreditHistoryEntry(clientId, unitId, amount, date, transactionId, note, source, userMessage = undefined) {
     try {
       if (!isAllowedCreditSource(source)) {
         throw new Error(buildInvalidCreditSourceMessage(source));
@@ -296,7 +296,8 @@ class CreditService {
         notes: note,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
         timestamp: new Date(dateMillis).toISOString(), // Use provided date
-        source: normalizedSource
+        source: normalizedSource,
+        userMessage
       });
       
       // Initialize or update history array
@@ -613,11 +614,9 @@ class CreditService {
         updatedEntry.source = normalizeCreditSource(updates.source);
       }
 
-      updatedEntry.userMessage = computeUserMessageForWrite({
-        notes: updatedEntry.notes,
-        source: updatedEntry.source,
-        type: updatedEntry.type
-      });
+      if (updates.userMessage !== undefined) {
+        updatedEntry.userMessage = String(updates.userMessage).trim();
+      }
       
       // Replace entry in history
       const newHistory = [...history];
