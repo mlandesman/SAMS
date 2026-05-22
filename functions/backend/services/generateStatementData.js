@@ -99,7 +99,10 @@ const buildRows = ({
         penaltyRef: row.penaltyRef || null,
         source: row.source || null,
         isStandaloneCredit: row.isStandaloneCredit || false,
-        creditEntryId: row.creditEntryId || null
+        creditEntryId: row.creditEntryId || null,
+        userMessage: row.userMessage || null,
+        userMessage_es: row.userMessage_es || null,
+        persistedUserMessageEs: row.persistedUserMessageEs
       };
     })
     .filter((row) => row.amountCentavos !== 0);

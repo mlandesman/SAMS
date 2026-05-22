@@ -26,7 +26,8 @@ import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 import creditService from '../services/creditService.js';
-import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../../shared/utils/creditSources.js';
+import { computeUserMessageForWrite } from '../../shared/utils/creditUserMessage.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
@@ -1930,7 +1931,7 @@ async function getAllDuesDataForYear(clientId, year) {
  * @param {string} [entryDate] - Optional: ISO date string for the history entry (defaults to now)
  * @returns {boolean} Success status
  */
-async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes, entryDate) {
+async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes, entryDate, userMessage, userMessage_es) {
   try {
     // Get current credit balance from centralized service
     const currentCreditInfo = await creditService.getCreditBalance(clientId, unitId);
@@ -1946,6 +1947,14 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     // Convert pesos to centavos for credit service
     const changeAmountCentavos = pesosToCentavos(changeAmountPesos);
     const adjustmentNote = notes ? `Manual HOA adjustment: ${notes}` : 'Manual HOA credit adjustment';
+    const entryType = changeAmountCentavos > 0 ? 'credit_added' : 'credit_used';
+    const resolvedMessages = computeUserMessageForWrite({
+      notes: notes?.trim() || '',
+      source: 'admin',
+      type: entryType,
+      userMessage,
+      userMessage_es
+    });
     
     // Use entryDate if provided, otherwise use current date
     const entryDateToUse = entryDate || getNow().toISOString();
@@ -1959,7 +1968,9 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       entryDateToUse,
       null, // transactionId - null for admin entries
       adjustmentNote,
-      'admin'  // Use 'admin' source so Statement of Account shows these adjustments
+      'admin',  // Use 'admin' source so Statement of Account shows these adjustments
+      resolvedMessages.userMessage,
+      resolvedMessages.userMessage_es
     );
     logDebug(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos (${changeAmountPesos} pesos)`);
 

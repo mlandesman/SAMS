@@ -9,6 +9,7 @@
 
 import { getNow } from '../services/DateService.js';
 import { getCreditBalanceCentavos } from './hoaCreditTotals.js';
+import { computeUserMessageForWrite } from './creditUserMessage.js';
 
 /**
  * Calculate current credit balance from history entries.
@@ -44,6 +45,8 @@ export function getCreditBalanceDollars(creditDoc) {
  * @param {string} [params.type='payment'] - Optional: 'payment', 'credit_added', 'credit_used', 'adjustment'
  * @param {string|Date} [params.timestamp] - Optional: ISO string or Date (defaults to now)
  * @param {string} [params.source='unifiedPayment'] - Optional: Source module (e.g., 'unifiedPayment', 'waterBills', 'hoaDues', 'admin')
+ * @param {string} [params.userMessage] - Optional: explicit English client-facing message
+ * @param {string} [params.userMessage_es] - Optional: explicit Spanish client-facing message
  * @returns {Object} Clean history entry
  */
 export function createCreditHistoryEntry({
@@ -53,7 +56,9 @@ export function createCreditHistoryEntry({
   note,  // Backward compatibility - will be mapped to 'notes'
   type = 'payment',
   timestamp,
-  source = 'unifiedPayment'
+  source = 'unifiedPayment',
+  userMessage,
+  userMessage_es
 }) {
   // Use getNow() for timestamp if not provided
   let timestampValue;
@@ -69,12 +74,27 @@ export function createCreditHistoryEntry({
   
   // Use 'notes' if provided, otherwise fall back to 'note' for backward compatibility
   const notesValue = notes || note || '';
+  const computed = computeUserMessageForWrite({
+    notes: notesValue,
+    source,
+    type,
+    userMessage,
+    userMessage_es
+  });
+  const hasExplicitUserMessage = userMessage !== undefined && userMessage !== null;
+  const hasExplicitUserMessageEs = userMessage_es !== undefined && userMessage_es !== null;
   
   return {
     id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     amount,
     transactionId,
     notes: notesValue,  // Always use 'notes' (plural) for consistency
+    userMessage: hasExplicitUserMessage
+      ? (String(userMessage).trim() || computed.userMessage)
+      : computed.userMessage,
+    userMessage_es: hasExplicitUserMessageEs
+      ? String(userMessage_es).trim()
+      : computed.userMessage_es,
     type,
     timestamp: timestampValue,
     source

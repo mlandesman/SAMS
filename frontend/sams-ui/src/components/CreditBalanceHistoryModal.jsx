@@ -8,7 +8,8 @@ import CreditBalanceEditModal from './CreditBalanceEditModal';
 import CreditBalanceEditEntryModal from './CreditBalanceEditEntryModal';
 import CreditBalanceConfirmModal from './CreditBalanceConfirmModal';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
-import './CreditBalanceHistoryModal.css';
+import '../styles/SandylandModalTheme.css';
+import '../styles/CreditBalanceModals.css';
 
 function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHistory, currentBalance, year, onUpdate }) {
   const { selectedClient } = useClient();
@@ -230,24 +231,25 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
 
   return (
     <>
-      <div className="modal-backdrop">
-        <div className="credit-balance-history-modal">
-          <div className="modal-header">
-            <h3>{t('creditHistory.title', { unitId })}</h3>
-            <button className="close-button" onClick={onClose}>×</button>
+      <div className="sandyland-modal-overlay" onClick={onClose}>
+        <div className="sandyland-modal credit-balance-modal credit-balance-modal--wide" onClick={(e) => e.stopPropagation()}>
+          <div className="sandyland-modal-header credit-balance-modal-header">
+            <h2 className="sandyland-modal-title credit-balance-modal-title">{t('creditHistory.title', { unitId })}</h2>
+            <button type="button" className="credit-modal-close" onClick={onClose} aria-label={t('creditHistory.close')}>×</button>
           </div>
           
-          <div className="modal-body">
-            <div className="current-balance-display">
+          <div className="sandyland-modal-content credit-balance-modal-content">
+            <div className="credit-balance-history-balance">
               <span className="label">{t('creditHistory.currentBalance')}</span>
               <span className="amount">{formatAsMXN(currentBalance || 0)}</span>
             </div>
 
             {canEdit && (
-              <div className="action-buttons-section">
-                <div className="action-buttons">
+              <>
+                <div className="credit-balance-action-buttons">
                   <button 
-                    className="btn-add-credit"
+                    type="button"
+                    className="sandyland-btn sandyland-btn-success"
                     onClick={() => {
                       setAddRemoveMode('add');
                       setShowAddModal(true);
@@ -256,7 +258,8 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                     ➕ {t('creditHistory.addCredit')}
                   </button>
                   <button
-                    className="btn-remove-credit"
+                    type="button"
+                    className="sandyland-btn sandyland-btn-danger"
                     onClick={() => {
                       setAddRemoveMode('remove');
                       setShowAddModal(true);
@@ -265,19 +268,19 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                     ➖ {t('creditHistory.removeCredit')}
                   </button>
                 </div>
-                <div className="action-hint">
+                <div className="credit-balance-action-hint">
                   {t('creditHistory.contextHint')}
                 </div>
-              </div>
+              </>
             )}
 
             {sortedHistory.length === 0 ? (
-              <div className="no-history">
+              <div className="credit-balance-no-history">
                 <p>{t('creditHistory.noHistory')}</p>
               </div>
             ) : (
-              <div className="history-table-container">
-                <table className="history-table">
+              <div className="credit-balance-table-wrap">
+                <table className="credit-balance-history-table">
                   <thead>
                     <tr>
                       <th>{t('creditHistory.date')}</th>
@@ -302,18 +305,18 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
                         >
                           <td>{formatDate(entry)}</td>
                           <td>
-                            <span className={`type-badge type-${entry.type || 'unknown'}`}>
+                            <span className={`credit-balance-type-badge type-${entry.type || 'unknown'}`}>
                               {formatType(entry.type)}
                             </span>
                           </td>
-                          <td className={isPositive ? 'amount-positive' : 'amount-negative'}>
+                          <td className={isPositive ? 'credit-balance-amount-positive' : 'credit-balance-amount-negative'}>
                             {isPositive ? '+' : ''}{formatAmount(amount)}
                           </td>
-                          <td className="running-balance">
+                          <td className="credit-balance-running-balance">
                             {formatAsMXN(runningBalance)}
                           </td>
-                          <td className="notes-cell">{entry.notes || ''}</td>
-                          <td className="source-cell">{entry.source || t('creditHistory.na')}</td>
+                          <td className="credit-balance-notes-cell">{entry.notes || ''}</td>
+                          <td className="credit-balance-source-cell">{entry.source || t('creditHistory.na')}</td>
                         </tr>
                       );
                     })}
@@ -323,8 +326,8 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
             )}
           </div>
 
-          <div className="modal-footer">
-            <button className="btn-secondary" onClick={onClose}>
+          <div className="sandyland-modal-buttons">
+            <button type="button" className="sandyland-btn sandyland-btn-secondary" onClick={onClose}>
               {t('creditHistory.close')}
             </button>
           </div>
@@ -334,41 +337,22 @@ function CreditBalanceHistoryModal({ isOpen, onClose, unitId, creditBalanceHisto
       {/* Context Menu */}
       {contextMenu && (
         <div
-          style={{
-            position: 'fixed',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 10000,
-            minWidth: '150px'
-          }}
+          className="credit-balance-context-menu"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
+          role="menu"
         >
           <div
+            className="credit-balance-context-menu-item"
             onClick={handleEditConfirm}
-            style={{
-              padding: '10px 15px',
-              cursor: 'pointer',
-              borderRadius: '4px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+            role="menuitem"
           >
             {t('creditHistory.editEntry')}
           </div>
           <div
+            className="credit-balance-context-menu-item credit-balance-context-menu-item--danger"
             onClick={handleDeleteConfirm}
-            style={{
-              padding: '10px 15px',
-              cursor: 'pointer',
-              borderRadius: '4px',
-              color: '#dc3545'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8d7da'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+            role="menuitem"
           >
             {t('creditHistory.deleteEntry')}
           </div>

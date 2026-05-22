@@ -17,6 +17,7 @@ import { joinOwnerNames } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { generatePropaneTrendSvg } from './propaneGraphSvgService.js';
+import { resolveCreditUserMessageForLocale, lookupSpanishForEnglishTemplate } from '../../shared/utils/creditUserMessage.js';
 
 /**
  * Format currency (pesos)
@@ -167,6 +168,28 @@ function translateDescription(description, language) {
   }
   
   return translated;
+}
+
+/**
+ * Resolve credit owner-facing text for statement rows with approved ES templates first.
+ */
+function resolveCreditNotesForDisplay(entry, language) {
+  const localized = resolveCreditUserMessageForLocale(entry, language);
+  if (localized) {
+    return localized;
+  }
+
+  const isSpanish = language === 'spanish' || language === 'es';
+  if (!isSpanish) {
+    return resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
+  }
+
+  if (entry.persistedUserMessageEs !== undefined && entry.persistedUserMessageEs !== null) {
+    return '';
+  }
+
+  const enNotes = resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
+  return lookupSpanishForEnglishTemplate(enNotes) || translateDescription(enNotes, language);
 }
 
 /**
@@ -330,8 +353,14 @@ function getQuarterFromDate(date) {
 }
 
 /**
- * Extract category from notes (HOA, Water, etc.)
+ * Extract category from notes (HOA, Water, etc.) or source metadata.
  */
+function getCategoryFromEntry(entry) {
+  if (entry?.source === 'hoaDues') return 'hoa';
+  if (entry?.source === 'waterBills') return 'water';
+  return getCategoryFromNotes(entry?.notes);
+}
+
 function getCategoryFromNotes(notes) {
   if (!notes) return 'other';
   const lowerNotes = notes.toLowerCase();
@@ -373,8 +402,8 @@ function collapseCreditEntries(entries) {
       ? entry.type 
       : (amount >= 0 ? 'credit_added' : 'credit_used');
     
-    // Get category from notes
-    const category = getCategoryFromNotes(entry.notes);
+    // Get category from source/notes for grouping (audit notes may be internal)
+    const category = getCategoryFromEntry(entry);
     
     // For starting_balance, don't group - keep as standalone
     if (entryType === 'starting_balance') {
@@ -412,28 +441,36 @@ function collapseCreditEntries(entries) {
   // Convert grouped object to array and format notes for combined entries
   const result = Object.values(grouped).map(groupedEntry => {
     if (groupedEntry.count > 1) {
-      // Multiple entries - create summary note
-      const months = groupedEntry.originalEntries.map(e => {
-        const q = getQuarterFromDate(e.date);
-        return q ? q.dt.toFormat('MMM') : '';
-      }).filter(Boolean);
-      
-      const uniqueMonths = [...new Set(months)];
-      const monthRange = uniqueMonths.length > 2 
-        ? `${uniqueMonths[0]}-${uniqueMonths[uniqueMonths.length - 1]}`
-        : uniqueMonths.join(', ');
-      
-      const categoryLabel = {
-        'hoa': 'HOA Dues',
-        'water': 'Water Bills',
-        'penalty': 'Penalties',
-        'other': 'Items'
-      }[groupedEntry.category] || 'Items';
-      
-      const actionLabel = groupedEntry.entryType === 'credit_used' ? 'Used for' : 'Added from';
+      const buildMonthRange = (locale) => {
+        const months = groupedEntry.originalEntries.map((e) => {
+          const q = getQuarterFromDate(e.date);
+          if (!q) return '';
+          return locale === 'es'
+            ? q.dt.setLocale('es').toFormat('MMM')
+            : q.dt.toFormat('MMM');
+        }).filter(Boolean);
+        const uniqueMonths = [...new Set(months)];
+        if (uniqueMonths.length > 2) {
+          return `${uniqueMonths[0]}-${uniqueMonths[uniqueMonths.length - 1]}`;
+        }
+        return uniqueMonths.join(', ');
+      };
+
+      const categoryLabels = {
+        hoa: { en: 'HOA Dues', es: 'Cuotas de Mantenimiento' },
+        water: { en: 'Water Bills', es: 'Facturas de Agua' },
+        penalty: { en: 'Penalties', es: 'Penalizaciones' },
+        other: { en: 'Items', es: 'Conceptos' }
+      };
+      const labels = categoryLabels[groupedEntry.category] || categoryLabels.other;
+      const actionEn = groupedEntry.entryType === 'credit_used' ? 'Used for' : 'Added from';
+      const actionEs = groupedEntry.entryType === 'credit_used' ? 'Usado para' : 'Agregado desde';
       const year = groupedEntry.quarterInfo?.year || '';
-      
-      groupedEntry.notes = `${actionLabel} ${categoryLabel} (${monthRange} ${year}) - ${groupedEntry.count} entries`;
+      const monthRangeEn = buildMonthRange('en');
+      const monthRangeEs = buildMonthRange('es');
+
+      groupedEntry.userMessage = `${actionEn} ${labels.en} (${monthRangeEn} ${year}) - ${groupedEntry.count} entries`;
+      groupedEntry.userMessage_es = `${actionEs} ${labels.es} (${monthRangeEs} ${year}) - ${groupedEntry.count} entradas`;
     }
     return groupedEntry;
   });
@@ -1809,10 +1846,22 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           const chargeValue = item.charge;
           const showCharge = !isAdjustment && item.charge > 0;
           const showPayment = item.payment !== 0;
+          const descriptionText = isAdjustment
+            ? resolveCreditNotesForDisplay(
+              {
+                userMessage: item.userMessage,
+                userMessage_es: item.userMessage_es,
+                persistedUserMessageEs: item.persistedUserMessageEs,
+                source: item.source,
+                type: item.amount > 0 || item.charge > 0 ? 'credit_added' : 'credit_used'
+              },
+              language
+            )
+            : translateDescription(item.description, language);
           return `
         <tr class="${isAdjustment ? 'credit-adjustment-row' : 'clickable'}" data-transaction-id="${item.transactionId || ''}">
           <td class="col-date">${formatDate(item.date)}</td>
-          <td class="col-description ${isAdjustment ? 'credit-adjustment-text' : ''}">${translateDescription(item.description, language)}</td>
+          <td class="col-description ${isAdjustment ? 'credit-adjustment-text' : ''}">${descriptionText}</td>
           <td class="col-charge amount">${showCharge ? formatCurrency(chargeValue) : ''}</td>
           <td class="col-payment amount ${showPayment && item.payment > 0 ? 'payment-red' : ''}">${showPayment ? formatCurrency(item.payment) : ''}</td>
           <td class="col-balance amount">${formatCurrency(item.balance)}</td>
@@ -1986,7 +2035,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 ? formatCurrency(Math.abs(amount), true)
                 : formatCurrency(amount);
               
-              let notes = entry.notes || '';
+              let notes = resolveCreditNotesForDisplay(entry, language);
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }

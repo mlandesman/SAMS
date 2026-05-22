@@ -18,11 +18,26 @@ import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
+import {
+  resolveCreditUserMessage,
+  resolveCreditUserMessageEs
+} from '../../shared/utils/creditUserMessage.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import propaneReadingsService from './propaneReadingsService.js';
+
+/** Prefer amount sign over stored type when they may disagree (legacy data). */
+function inferCreditEntryTypeFromAmount(amountCentavos, storedType) {
+  if (typeof amountCentavos === 'number' && amountCentavos !== 0) {
+    return amountCentavos > 0 ? 'credit_added' : 'credit_used';
+  }
+  if (storedType && storedType !== 'undefined') {
+    return storedType;
+  }
+  return 'credit_added';
+}
 
 /**
  * Get utility graph data for a unit
@@ -1178,7 +1193,10 @@ function buildLedgerInputs(transactions = []) {
       penaltyRef: txn.penaltyRef || null,
       source: txn.source || null,
       isStandaloneCredit: txn.isStandaloneCredit || false,
-      creditEntryId: txn.creditEntryId || null
+      creditEntryId: txn.creditEntryId || null,
+      userMessage: txn.userMessage || null,
+      userMessage_es: txn.userMessage_es || null,
+      persistedUserMessageEs: txn.persistedUserMessageEs
     };
 
     if (txn.type === 'payment' || txn.payment > 0) {
@@ -2220,10 +2238,20 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const amountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const amountPesos = centavosToPesos(amountCentavos);
             
+            const creditEntryContext = {
+              userMessage: entry.userMessage,
+              userMessage_es: entry.userMessage_es,
+              notes: entry.notes || '',
+              source: entry.source,
+              type: inferCreditEntryTypeFromAmount(amountCentavos, entry.type)
+            };
             creditAdjustments.push({
               type: 'credit_adjustment',
               date: entryDate,
-              description: entry.notes || 'Credit Adjustment',
+              description: resolveCreditUserMessage(creditEntryContext) || 'Credit Adjustment',
+              userMessage: resolveCreditUserMessage(creditEntryContext),
+              userMessage_es: resolveCreditUserMessageEs(creditEntryContext),
+              persistedUserMessageEs: entry.userMessage_es,
               // Admin credit adjustment: affects net position once (reduces balance)
               // Preserve sign from credit history (positive credit added)
               amount: amountPesos,
@@ -2314,19 +2342,26 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const entryAmountPesos = centavosToPesos(entryAmountCentavos);
             
-            // Infer type from amount if not present (for unified payment entries)
-            // Positive amount = credit added, negative amount = credit used
-            let entryType = entry.type;
-            if (!entryType || entryType === 'undefined') {
-              entryType = entryAmountCentavos >= 0 ? 'credit_added' : 'credit_used';
-            }
+            // Infer type from amount sign (authoritative) — stored type may be stale on legacy rows
+            const entryType = inferCreditEntryTypeFromAmount(entryAmountCentavos, entry.type);
             
+            const activityEntryContext = {
+              userMessage: entry.userMessage,
+              userMessage_es: entry.userMessage_es,
+              notes: entry.note || entry.notes || entry.description || '',
+              source: entry.source,
+              type: entryType
+            };
             creditActivityEntries.push({
               timestamp: entry.timestamp, // Keep original for date formatting
               date: entryDate, // Parsed Date object
               type: entryType, // 'credit_added' or 'credit_used' (inferred if missing)
               amount: entryAmountPesos, // In pesos: positive for deposits, negative for applied
-              notes: entry.note || entry.notes || entry.description || '',
+              notes: activityEntryContext.notes,
+              userMessage: resolveCreditUserMessage(activityEntryContext),
+              userMessage_es: resolveCreditUserMessageEs(activityEntryContext),
+              persistedUserMessageEs: entry.userMessage_es,
+              source: entry.source || null,
               creditBefore: entry.creditBefore ? centavosToPesos(entry.creditBefore) : null,
               creditAfter: entry.creditAfter ? centavosToPesos(entry.creditAfter) : null
             });
@@ -2457,7 +2492,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         penaltyRef: row.penaltyRef || null,
         source: row.source || null,
         isStandaloneCredit: row.isStandaloneCredit || false,
-        creditEntryId: row.creditEntryId || null
+        creditEntryId: row.creditEntryId || null,
+        userMessage: row.userMessage || null,
+        userMessage_es: row.userMessage_es || null,
+        persistedUserMessageEs: row.persistedUserMessageEs
       }));
     
     // Step 9: Fetch credit balance
@@ -3045,7 +3083,10 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       // Credit adjustment specific fields
       source: txn.source || null,
       isStandaloneCredit: txn.isStandaloneCredit || false,
-      creditEntryId: txn.creditEntryId || null
+      creditEntryId: txn.creditEntryId || null,
+      userMessage: txn.userMessage || null,
+      userMessage_es: txn.userMessage_es || null,
+      persistedUserMessageEs: txn.persistedUserMessageEs
     };
   });
   
