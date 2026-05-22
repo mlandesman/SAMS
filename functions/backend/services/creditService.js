@@ -8,7 +8,7 @@ import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { formatCurrency } from '../../shared/utils/currencyUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
-import { isAllowedCreditSource, normalizeCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
+import { isAllowedCreditSource, normalizeCreditSource, buildInvalidCreditSourceMessage } from '../../shared/utils/creditSources.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import admin from 'firebase-admin';
 

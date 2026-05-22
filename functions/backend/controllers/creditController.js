@@ -3,7 +3,7 @@
 // Routes requests to CreditService for business logic
 
 import creditService from '../services/creditService.js';
-import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../../shared/utils/creditSources.js';
 
 export class CreditController {
   constructor() {

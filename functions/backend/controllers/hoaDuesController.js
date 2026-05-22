@@ -26,7 +26,7 @@ import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 import creditService from '../services/creditService.js';
-import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../utils/creditSources.js';
+import { isAllowedCreditSource, buildInvalidCreditSourceMessage } from '../../shared/utils/creditSources.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
