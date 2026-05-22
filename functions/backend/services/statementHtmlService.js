@@ -150,6 +150,18 @@ function translateDescription(description, language) {
     'Q3': 'T3',
     'Q4': 'T4',
     
+    // Grouped credit row terms (used in synthetic statement descriptions)
+    'Used for': 'Usado para',
+    'Added from': 'Agregado desde',
+    'Items': 'Conceptos',
+    'entries': 'entradas',
+    
+    // Month abbreviations (English -> Spanish, only those that differ)
+    'Jan': 'Ene',
+    'Apr': 'Abr',
+    'Aug': 'Ago',
+    'Dec': 'Dic',
+    
     // Other common terms
     'Special Assessments': 'Cuotas Especiales',
     'Other': 'Otros',

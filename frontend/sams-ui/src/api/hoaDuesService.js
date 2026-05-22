@@ -335,20 +335,25 @@ export const addCreditHistoryEntry = async (clientId, unitId, amount, date, note
     const { pesosToCentavos } = await import('@shared/utils/currencyUtils');
     const amountCentavos = pesosToCentavos(amount);
     
+    const requestBody = {
+      amount: amountCentavos,
+      date: date,
+      transactionId: null, // Admin entries don't have transaction IDs
+      note: notes,
+      source: source
+    };
+
+    if (userMessage !== undefined && userMessage !== null) {
+      requestBody.userMessage = userMessage;
+    }
+
     const response = await fetch(`${API_BASE_URL}/credit/${clientId}/${unitId}/history`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        amount: amountCentavos,
-        date: date,
-        transactionId: null, // Admin entries don't have transaction IDs
-        note: notes,
-        source: source,
-        userMessage: userMessage
-      })
+      body: JSON.stringify(requestBody)
     });
 
     return handleApiResponse(response);
