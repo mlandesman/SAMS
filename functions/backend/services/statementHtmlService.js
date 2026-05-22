@@ -1993,7 +1993,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 ? formatCurrency(Math.abs(amount), true)
                 : formatCurrency(amount);
               
-              let notes = entry.userMessage || '';
+              let notes = translateDescription(entry.userMessage || '', language);
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }
