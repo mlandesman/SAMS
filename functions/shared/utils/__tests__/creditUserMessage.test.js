@@ -173,6 +173,21 @@ describe('creditUserMessage contract', () => {
         type: 'credit_used'
       })).toBe('Crédito aplicado a cuotas de mantenimiento');
     });
+
+    test('returns empty for custom English without persisted ES', () => {
+      expect(resolveCreditUserMessageEs({
+        notes: 'Owner goodwill credit for landscaping',
+        source: 'admin',
+        type: 'credit_added'
+      })).toBe('');
+    });
+
+    test('returns autogen ES only when resolved EN matches autogen template', () => {
+      expect(resolveCreditUserMessageEs({
+        source: 'hoaDues',
+        type: 'credit_added'
+      })).toBe('Crédito agregado por pago de cuotas de mantenimiento');
+    });
   });
 
   describe('resolveCreditUserMessageForLocale', () => {
