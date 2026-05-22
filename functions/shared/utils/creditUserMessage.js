@@ -1,8 +1,5 @@
 /**
- * Deterministic client-facing messages for credit history entries.
- *
- * Write path: computeUserMessageForWrite() persists userMessage alongside audit notes.
- * Read path: resolveCreditUserMessage() supplies userMessage for legacy entries lacking it.
+ * Deterministic client-facing messages for credit history entries (EN + ES).
  *
  * @module shared/utils/creditUserMessage
  */
@@ -24,73 +21,89 @@ const INTERNAL_NOTE_PATTERNS = [
 /** Maximum length for notes considered concise enough for direct client display. */
 const USER_FRIENDLY_MAX_LENGTH = 100;
 
+/** @typedef {{ en: string, es: string }} BilingualMessage */
+
 /**
- * Rule-based source/type → client-facing message (English-only; no localized write path on credit history).
- * Pure function of source and type — same inputs always yield the same output.
+ * Hand-crafted bilingual templates keyed by source/type.
+ * English values unchanged from Task 1.1 (User-approved).
  */
 const SOURCE_TYPE_MESSAGES = Object.freeze({
   unifiedPayment: {
-    credit_added: 'Credit added from overpayment',
-    credit_used: 'Credit applied to payment',
-    payment: 'Credit applied to payment',
-    adjustment: 'Credit adjustment'
+    credit_added: { en: 'Credit added from overpayment', es: 'Crédito agregado por pago en exceso' },
+    credit_used: { en: 'Credit applied to payment', es: 'Crédito aplicado al pago' },
+    payment: { en: 'Credit applied to payment', es: 'Crédito aplicado al pago' },
+    adjustment: { en: 'Credit adjustment', es: 'Ajuste de crédito' }
   },
   hoaDues: {
-    credit_added: 'Credit added from HOA dues payment',
-    credit_used: 'Credit applied to HOA dues',
-    payment: 'Credit applied to HOA dues',
-    adjustment: 'Credit adjustment'
+    credit_added: { en: 'Credit added from HOA dues payment', es: 'Crédito agregado por pago de cuotas de mantenimiento' },
+    credit_used: { en: 'Credit applied to HOA dues', es: 'Crédito aplicado a cuotas de mantenimiento' },
+    payment: { en: 'Credit applied to HOA dues', es: 'Crédito aplicado a cuotas de mantenimiento' },
+    adjustment: { en: 'Credit adjustment', es: 'Ajuste de crédito' }
   },
   waterBills: {
-    credit_added: 'Credit added from water bill payment',
-    credit_used: 'Credit applied to water bills',
-    payment: 'Credit applied to water bills',
-    adjustment: 'Credit adjustment'
+    credit_added: { en: 'Credit added from water bill payment', es: 'Crédito agregado por pago de factura de agua' },
+    credit_used: { en: 'Credit applied to water bills', es: 'Crédito aplicado a facturas de agua' },
+    payment: { en: 'Credit applied to water bills', es: 'Crédito aplicado a facturas de agua' },
+    adjustment: { en: 'Credit adjustment', es: 'Ajuste de crédito' }
   },
   admin: {
-    credit_added: 'Credit adjustment',
-    credit_used: 'Credit adjustment',
-    adjustment: 'Credit adjustment'
+    credit_added: { en: 'Credit adjustment', es: 'Ajuste de crédito' },
+    credit_used: { en: 'Credit adjustment', es: 'Ajuste de crédito' },
+    adjustment: { en: 'Credit adjustment', es: 'Ajuste de crédito' }
   },
   reconciliation: {
-    credit_added: 'Reconciliation credit added',
-    credit_used: 'Reconciliation credit applied',
-    adjustment: 'Reconciliation adjustment'
+    credit_added: { en: 'Reconciliation credit added', es: 'Crédito de conciliación agregado' },
+    credit_used: { en: 'Reconciliation credit applied', es: 'Crédito de conciliación aplicado' },
+    adjustment: { en: 'Reconciliation adjustment', es: 'Ajuste de conciliación' }
   },
   correction: {
-    credit_added: 'Credit correction',
-    credit_used: 'Credit correction',
-    adjustment: 'Credit correction'
+    credit_added: { en: 'Credit correction', es: 'Corrección de crédito' },
+    credit_used: { en: 'Credit correction', es: 'Corrección de crédito' },
+    adjustment: { en: 'Credit correction', es: 'Corrección de crédito' }
   },
   running_balance_computation: {
-    credit_added: 'Balance reconciliation',
-    credit_used: 'Balance reconciliation',
-    adjustment: 'Balance reconciliation'
+    credit_added: { en: 'Balance reconciliation', es: 'Conciliación de saldo' },
+    credit_used: { en: 'Balance reconciliation', es: 'Conciliación de saldo' },
+    adjustment: { en: 'Balance reconciliation', es: 'Conciliación de saldo' }
   },
   year_end_rollover: {
-    credit_added: 'Year-end credit rollover',
-    credit_used: 'Year-end credit applied',
-    adjustment: 'Year-end credit adjustment'
+    credit_added: { en: 'Year-end credit rollover', es: 'Traspaso de crédito de fin de año' },
+    credit_used: { en: 'Year-end credit applied', es: 'Crédito de fin de año aplicado' },
+    adjustment: { en: 'Year-end credit adjustment', es: 'Ajuste de crédito de fin de año' }
   },
   import: {
-    credit_added: 'Imported credit entry',
-    credit_used: 'Imported credit entry',
-    adjustment: 'Imported credit entry'
+    credit_added: { en: 'Imported credit entry', es: 'Entrada de crédito importada' },
+    credit_used: { en: 'Imported credit entry', es: 'Entrada de crédito importada' },
+    adjustment: { en: 'Imported credit entry', es: 'Entrada de crédito importada' }
   },
   imported: {
-    credit_added: 'Imported credit entry',
-    credit_used: 'Imported credit entry',
-    adjustment: 'Imported credit entry'
+    credit_added: { en: 'Imported credit entry', es: 'Entrada de crédito importada' },
+    credit_used: { en: 'Imported credit entry', es: 'Entrada de crédito importada' },
+    adjustment: { en: 'Imported credit entry', es: 'Entrada de crédito importada' }
   }
 });
 
 const DEFAULT_TYPE_MESSAGES = Object.freeze({
-  credit_added: 'Credit added to account',
-  credit_used: 'Credit applied to charges',
-  payment: 'Credit applied to charges',
-  adjustment: 'Credit adjustment',
-  starting_balance: 'Opening credit balance'
+  credit_added: { en: 'Credit added to account', es: 'Crédito agregado a la cuenta' },
+  credit_used: { en: 'Credit applied to charges', es: 'Crédito aplicado a cargos' },
+  payment: { en: 'Credit applied to charges', es: 'Crédito aplicado a cargos' },
+  adjustment: { en: 'Credit adjustment', es: 'Ajuste de crédito' },
+  starting_balance: { en: 'Opening credit balance', es: 'Saldo a favor inicial' }
 });
+
+/** Flat EN → ES lookup for backfill deterministic matching of persisted userMessage strings. */
+const EN_TO_ES_TEMPLATE_LOOKUP = (() => {
+  const map = new Map();
+  for (const messages of Object.values(SOURCE_TYPE_MESSAGES)) {
+    for (const msg of Object.values(messages)) {
+      map.set(msg.en, msg.es);
+    }
+  }
+  for (const msg of Object.values(DEFAULT_TYPE_MESSAGES)) {
+    map.set(msg.en, msg.es);
+  }
+  return map;
+})();
 
 /**
  * @param {string} [notes]
@@ -110,12 +123,10 @@ export function isNotesUserFriendly(notes) {
 }
 
 /**
- * Deterministic mapping from source/type to a stable client-facing message.
- *
  * @param {{ source?: string, type?: string }} params
- * @returns {string}
+ * @returns {BilingualMessage}
  */
-export function getAutogeneratedUserMessage({ source, type }) {
+export function getAutogeneratedUserMessageBilingual({ source, type }) {
   const normalizedSource = String(source || '').trim();
   const normalizedType = String(type || 'adjustment').trim();
 
@@ -131,27 +142,66 @@ export function getAutogeneratedUserMessage({ source, type }) {
 }
 
 /**
- * Compute userMessage at write time (persisted on the entry).
- *
- * @param {{ notes?: string, source?: string, type?: string }} params
+ * @param {{ source?: string, type?: string }} params
  * @returns {string}
  */
-export function computeUserMessageForWrite({ notes, source, type }) {
-  if (isNotesUserFriendly(notes)) {
-    return notes.trim();
-  }
-
-  return getAutogeneratedUserMessage({ source, type });
+export function getAutogeneratedUserMessage({ source, type }) {
+  return getAutogeneratedUserMessageBilingual({ source, type }).en;
 }
 
 /**
- * Resolve client-facing message for statement/read surfaces.
- * Uses persisted userMessage when present; otherwise falls back per contract rules.
- *
- * @param {{ userMessage?: string, notes?: string, source?: string, type?: string }} entry
+ * @param {{ source?: string, type?: string }} params
  * @returns {string}
  */
-export function resolveCreditUserMessage({ userMessage, notes, source, type }) {
+export function getAutogeneratedUserMessageEs({ source, type }) {
+  return getAutogeneratedUserMessageBilingual({ source, type }).es;
+}
+
+/**
+ * Deterministic ES for a known EN template string (backfill / legacy).
+ * @param {string} englishText
+ * @returns {string|null}
+ */
+export function lookupSpanishForEnglishTemplate(englishText) {
+  const key = String(englishText || '').trim();
+  if (!key) return null;
+  return EN_TO_ES_TEMPLATE_LOOKUP.get(key) || null;
+}
+
+/**
+ * @param {{ notes?: string, source?: string, type?: string, userMessage?: string, userMessage_es?: string }} params
+ * @returns {{ userMessage: string, userMessage_es: string }}
+ */
+export function computeUserMessageForWrite({ notes, source, type, userMessage, userMessage_es }) {
+  const explicitEn = typeof userMessage === 'string' ? userMessage.trim() : '';
+  const explicitEs = typeof userMessage_es === 'string' ? userMessage_es.trim() : '';
+  const bilingual = getAutogeneratedUserMessageBilingual({ source, type });
+
+  if (explicitEn || explicitEs) {
+    return {
+      userMessage: explicitEn || bilingual.en,
+      userMessage_es: explicitEs || bilingual.es
+    };
+  }
+
+  if (isNotesUserFriendly(notes)) {
+    return {
+      userMessage: notes.trim(),
+      userMessage_es: lookupSpanishForEnglishTemplate(notes.trim()) || ''
+    };
+  }
+
+  return {
+    userMessage: bilingual.en,
+    userMessage_es: bilingual.es
+  };
+}
+
+/**
+ * @param {{ userMessage?: string, userMessage_es?: string, notes?: string, source?: string, type?: string }} entry
+ * @returns {string}
+ */
+export function resolveCreditUserMessage({ userMessage, userMessage_es, notes, source, type }) {
   if (userMessage && typeof userMessage === 'string' && userMessage.trim()) {
     return userMessage.trim();
   }
@@ -161,4 +211,49 @@ export function resolveCreditUserMessage({ userMessage, notes, source, type }) {
   }
 
   return getAutogeneratedUserMessage({ source, type });
+}
+
+/**
+ * @param {{ userMessage?: string, userMessage_es?: string, notes?: string, source?: string, type?: string }} entry
+ * @returns {string}
+ */
+export function resolveCreditUserMessageEs({ userMessage, userMessage_es, notes, source, type }) {
+  if (userMessage_es && typeof userMessage_es === 'string' && userMessage_es.trim()) {
+    return userMessage_es.trim();
+  }
+
+  const resolvedEn = resolveCreditUserMessage({ userMessage, notes, source, type });
+  const fromTemplate = lookupSpanishForEnglishTemplate(resolvedEn);
+  if (fromTemplate) {
+    return fromTemplate;
+  }
+
+  return getAutogeneratedUserMessageEs({ source, type });
+}
+
+/**
+ * Pick locale-appropriate client message for statement rendering.
+ * @param {{ userMessage?: string, userMessage_es?: string, notes?: string, source?: string, type?: string }} entry
+ * @param {'english'|'spanish'|'es'|'en'} language
+ * @returns {string}
+ */
+export function resolveCreditUserMessageForLocale(entry, language) {
+  const isSpanish = language === 'spanish' || language === 'es';
+  return isSpanish
+    ? resolveCreditUserMessageEs(entry)
+    : resolveCreditUserMessage(entry);
+}
+
+/** All bilingual templates (for tests). */
+export function getAllCreditUserMessageTemplates() {
+  const templates = [];
+  for (const messages of Object.values(SOURCE_TYPE_MESSAGES)) {
+    for (const msg of Object.values(messages)) {
+      templates.push({ ...msg });
+    }
+  }
+  for (const msg of Object.values(DEFAULT_TYPE_MESSAGES)) {
+    templates.push({ ...msg });
+  }
+  return templates;
 }

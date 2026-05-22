@@ -44,7 +44,7 @@ export class CreditController {
   updateCreditBalance = async (req, res) => {
     try {
       const { clientId, unitId } = req.params;
-      const { amount, transactionId, note, source, userMessage } = req.body;
+      const { amount, transactionId, note, source, userMessage, userMessage_es } = req.body;
       
       // Input validation
       if (!clientId || !unitId) {
@@ -98,7 +98,8 @@ export class CreditController {
         note, 
         source,
         null,
-        userMessage
+        userMessage,
+        userMessage_es
       );
       
       res.status(200).json(result);
@@ -162,7 +163,7 @@ export class CreditController {
   addCreditHistoryEntry = async (req, res) => {
     try {
       const { clientId, unitId } = req.params;
-      const { amount, date, transactionId, note, source, userMessage } = req.body;
+      const { amount, date, transactionId, note, source, userMessage, userMessage_es } = req.body;
       
       // Input validation
       if (!clientId || !unitId) {
@@ -234,7 +235,8 @@ export class CreditController {
         transactionId || null, // Allow null for admin entries
         note, 
         source,
-        userMessage
+        userMessage,
+        userMessage_es
       );
       
       res.status(200).json(result);
@@ -320,7 +322,7 @@ export class CreditController {
   updateCreditHistoryEntry = async (req, res) => {
     try {
       const { clientId, unitId, entryId } = req.params;
-      const { date, amount, notes, source, userMessage } = req.body;
+      const { date, amount, notes, source, userMessage, userMessage_es } = req.body;
       
       // Input validation
       if (!clientId || !unitId || !entryId) {
@@ -344,6 +346,7 @@ export class CreditController {
       if (notes !== undefined) updates.notes = notes;
       if (source !== undefined) updates.source = source;
       if (userMessage !== undefined) updates.userMessage = userMessage;
+      if (userMessage_es !== undefined) updates.userMessage_es = userMessage_es;
       if (updates.source !== undefined && !isAllowedCreditSource(updates.source)) {
         return res.status(400).json({
           error: buildInvalidCreditSourceMessage(updates.source)

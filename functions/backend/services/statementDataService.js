@@ -18,7 +18,10 @@ import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
-import { resolveCreditUserMessage } from '../../shared/utils/creditUserMessage.js';
+import {
+  resolveCreditUserMessage,
+  resolveCreditUserMessageEs
+} from '../../shared/utils/creditUserMessage.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
@@ -2221,15 +2224,19 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const amountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const amountPesos = centavosToPesos(amountCentavos);
             
+            const creditEntryContext = {
+              userMessage: entry.userMessage,
+              userMessage_es: entry.userMessage_es,
+              notes: entry.notes || '',
+              source: entry.source,
+              type: entry.type || (amountCentavos >= 0 ? 'credit_added' : 'credit_used')
+            };
             creditAdjustments.push({
               type: 'credit_adjustment',
               date: entryDate,
-              description: resolveCreditUserMessage({
-                userMessage: entry.userMessage,
-                notes: entry.notes || '',
-                source: entry.source,
-                type: entry.type || (amountCentavos >= 0 ? 'credit_added' : 'credit_used')
-              }) || 'Credit Adjustment',
+              description: resolveCreditUserMessage(creditEntryContext) || 'Credit Adjustment',
+              userMessage: resolveCreditUserMessage(creditEntryContext),
+              userMessage_es: resolveCreditUserMessageEs(creditEntryContext),
               // Admin credit adjustment: affects net position once (reduces balance)
               // Preserve sign from credit history (positive credit added)
               amount: amountPesos,
@@ -2327,18 +2334,21 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               entryType = entryAmountCentavos >= 0 ? 'credit_added' : 'credit_used';
             }
             
+            const activityEntryContext = {
+              userMessage: entry.userMessage,
+              userMessage_es: entry.userMessage_es,
+              notes: entry.note || entry.notes || entry.description || '',
+              source: entry.source,
+              type: entryType
+            };
             creditActivityEntries.push({
               timestamp: entry.timestamp, // Keep original for date formatting
               date: entryDate, // Parsed Date object
               type: entryType, // 'credit_added' or 'credit_used' (inferred if missing)
               amount: entryAmountPesos, // In pesos: positive for deposits, negative for applied
-              notes: entry.note || entry.notes || entry.description || '',
-              userMessage: resolveCreditUserMessage({
-                userMessage: entry.userMessage,
-                notes: entry.note || entry.notes || entry.description || '',
-                source: entry.source,
-                type: entryType
-              }),
+              notes: activityEntryContext.notes,
+              userMessage: resolveCreditUserMessage(activityEntryContext),
+              userMessage_es: resolveCreditUserMessageEs(activityEntryContext),
               source: entry.source || null,
               creditBefore: entry.creditBefore ? centavosToPesos(entry.creditBefore) : null,
               creditAfter: entry.creditAfter ? centavosToPesos(entry.creditAfter) : null

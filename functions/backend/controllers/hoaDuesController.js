@@ -1930,7 +1930,7 @@ async function getAllDuesDataForYear(clientId, year) {
  * @param {string} [entryDate] - Optional: ISO date string for the history entry (defaults to now)
  * @returns {boolean} Success status
  */
-async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes, entryDate, userMessage) {
+async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes, entryDate, userMessage, userMessage_es) {
   try {
     // Get current credit balance from centralized service
     const currentCreditInfo = await creditService.getCreditBalance(clientId, unitId);
@@ -1960,7 +1960,8 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       null, // transactionId - null for admin entries
       adjustmentNote,
       'admin',  // Use 'admin' source so Statement of Account shows these adjustments
-      userMessage
+      userMessage,
+      userMessage_es
     );
     logDebug(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos (${changeAmountPesos} pesos)`);
 

@@ -96,7 +96,7 @@ class CreditService {
    *   instance (e.g. Prod ADC). When omitted, uses dev `getDb()`.
    * @returns {Promise<Object>} Update result
    */
-  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source, dbOverride = null, userMessage = undefined) {
+  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source, dbOverride = null, userMessage = undefined, userMessage_es = undefined) {
     try {
       if (!isAllowedCreditSource(source)) {
         throw new Error(buildInvalidCreditSourceMessage(source));
@@ -133,7 +133,8 @@ class CreditService {
         notes,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
         source: normalizedSource,
-        userMessage
+        userMessage,
+        userMessage_es
       });
       
       // Initialize or update history array
@@ -259,7 +260,7 @@ class CreditService {
    * @param {string} source - Source module
    * @returns {Promise<Object>} Operation result
    */
-  async addCreditHistoryEntry(clientId, unitId, amount, date, transactionId, note, source, userMessage = undefined) {
+  async addCreditHistoryEntry(clientId, unitId, amount, date, transactionId, note, source, userMessage = undefined, userMessage_es = undefined) {
     try {
       if (!isAllowedCreditSource(source)) {
         throw new Error(buildInvalidCreditSourceMessage(source));
@@ -297,7 +298,8 @@ class CreditService {
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
         timestamp: new Date(dateMillis).toISOString(), // Use provided date
         source: normalizedSource,
-        userMessage
+        userMessage,
+        userMessage_es
       });
       
       // Initialize or update history array
@@ -616,6 +618,10 @@ class CreditService {
 
       if (updates.userMessage !== undefined) {
         updatedEntry.userMessage = String(updates.userMessage).trim();
+      }
+
+      if (updates.userMessage_es !== undefined) {
+        updatedEntry.userMessage_es = String(updates.userMessage_es).trim();
       }
       
       // Replace entry in history

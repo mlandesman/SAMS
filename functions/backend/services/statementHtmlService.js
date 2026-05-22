@@ -17,6 +17,7 @@ import { joinOwnerNames } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { generatePropaneTrendSvg } from './propaneGraphSvgService.js';
+import { resolveCreditUserMessageForLocale } from '../../shared/utils/creditUserMessage.js';
 
 /**
  * Format currency (pesos)
@@ -149,18 +150,6 @@ function translateDescription(description, language) {
     'Q2': 'T2',
     'Q3': 'T3',
     'Q4': 'T4',
-    
-    // Grouped credit row terms (used in synthetic statement descriptions)
-    'Used for': 'Usado para',
-    'Added from': 'Agregado desde',
-    'Items': 'Conceptos',
-    'entries': 'entradas',
-    
-    // Month abbreviations (English -> Spanish, only those that differ)
-    'Jan': 'Ene',
-    'Apr': 'Abr',
-    'Aug': 'Ago',
-    'Dec': 'Dic',
     
     // Other common terms
     'Special Assessments': 'Cuotas Especiales',
@@ -430,29 +419,36 @@ function collapseCreditEntries(entries) {
   // Convert grouped object to array and format notes for combined entries
   const result = Object.values(grouped).map(groupedEntry => {
     if (groupedEntry.count > 1) {
-      // Multiple entries - create summary note
-      const months = groupedEntry.originalEntries.map(e => {
-        const q = getQuarterFromDate(e.date);
-        return q ? q.dt.toFormat('MMM') : '';
-      }).filter(Boolean);
-      
-      const uniqueMonths = [...new Set(months)];
-      const monthRange = uniqueMonths.length > 2 
-        ? `${uniqueMonths[0]}-${uniqueMonths[uniqueMonths.length - 1]}`
-        : uniqueMonths.join(', ');
-      
-      const categoryLabel = {
-        'hoa': 'HOA Dues',
-        'water': 'Water Bills',
-        'penalty': 'Penalties',
-        'other': 'Items'
-      }[groupedEntry.category] || 'Items';
-      
-      const actionLabel = groupedEntry.entryType === 'credit_used' ? 'Used for' : 'Added from';
+      const buildMonthRange = (locale) => {
+        const months = groupedEntry.originalEntries.map((e) => {
+          const q = getQuarterFromDate(e.date);
+          if (!q) return '';
+          return locale === 'es'
+            ? q.dt.setLocale('es').toFormat('MMM')
+            : q.dt.toFormat('MMM');
+        }).filter(Boolean);
+        const uniqueMonths = [...new Set(months)];
+        if (uniqueMonths.length > 2) {
+          return `${uniqueMonths[0]}-${uniqueMonths[uniqueMonths.length - 1]}`;
+        }
+        return uniqueMonths.join(', ');
+      };
+
+      const categoryLabels = {
+        hoa: { en: 'HOA Dues', es: 'Cuotas de Mantenimiento' },
+        water: { en: 'Water Bills', es: 'Facturas de Agua' },
+        penalty: { en: 'Penalties', es: 'Penalizaciones' },
+        other: { en: 'Items', es: 'Conceptos' }
+      };
+      const labels = categoryLabels[groupedEntry.category] || categoryLabels.other;
+      const actionEn = groupedEntry.entryType === 'credit_used' ? 'Used for' : 'Added from';
+      const actionEs = groupedEntry.entryType === 'credit_used' ? 'Usado para' : 'Agregado desde';
       const year = groupedEntry.quarterInfo?.year || '';
-      
-      groupedEntry.notes = `${actionLabel} ${categoryLabel} (${monthRange} ${year}) - ${groupedEntry.count} entries`;
-      groupedEntry.userMessage = groupedEntry.notes;
+      const monthRangeEn = buildMonthRange('en');
+      const monthRangeEs = buildMonthRange('es');
+
+      groupedEntry.userMessage = `${actionEn} ${labels.en} (${monthRangeEn} ${year}) - ${groupedEntry.count} entries`;
+      groupedEntry.userMessage_es = `${actionEs} ${labels.es} (${monthRangeEs} ${year}) - ${groupedEntry.count} entradas`;
     }
     return groupedEntry;
   });
@@ -1828,10 +1824,16 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           const chargeValue = item.charge;
           const showCharge = !isAdjustment && item.charge > 0;
           const showPayment = item.payment !== 0;
+          const descriptionText = isAdjustment
+            ? resolveCreditUserMessageForLocale(
+              { userMessage: item.userMessage, userMessage_es: item.userMessage_es },
+              language
+            )
+            : translateDescription(item.description, language);
           return `
         <tr class="${isAdjustment ? 'credit-adjustment-row' : 'clickable'}" data-transaction-id="${item.transactionId || ''}">
           <td class="col-date">${formatDate(item.date)}</td>
-          <td class="col-description ${isAdjustment ? 'credit-adjustment-text' : ''}">${translateDescription(item.description, language)}</td>
+          <td class="col-description ${isAdjustment ? 'credit-adjustment-text' : ''}">${descriptionText}</td>
           <td class="col-charge amount">${showCharge ? formatCurrency(chargeValue) : ''}</td>
           <td class="col-payment amount ${showPayment && item.payment > 0 ? 'payment-red' : ''}">${showPayment ? formatCurrency(item.payment) : ''}</td>
           <td class="col-balance amount">${formatCurrency(item.balance)}</td>
@@ -2005,7 +2007,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 ? formatCurrency(Math.abs(amount), true)
                 : formatCurrency(amount);
               
-              let notes = translateDescription(entry.userMessage || '', language);
+              let notes = resolveCreditUserMessageForLocale(entry, language);
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }

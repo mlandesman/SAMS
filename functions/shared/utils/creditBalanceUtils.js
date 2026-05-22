@@ -45,7 +45,8 @@ export function getCreditBalanceDollars(creditDoc) {
  * @param {string} [params.type='payment'] - Optional: 'payment', 'credit_added', 'credit_used', 'adjustment'
  * @param {string|Date} [params.timestamp] - Optional: ISO string or Date (defaults to now)
  * @param {string} [params.source='unifiedPayment'] - Optional: Source module (e.g., 'unifiedPayment', 'waterBills', 'hoaDues', 'admin')
- * @param {string} [params.userMessage] - Optional: explicit client-facing message (otherwise computed)
+ * @param {string} [params.userMessage] - Optional: explicit English client-facing message
+ * @param {string} [params.userMessage_es] - Optional: explicit Spanish client-facing message
  * @returns {Object} Clean history entry
  */
 export function createCreditHistoryEntry({
@@ -56,7 +57,8 @@ export function createCreditHistoryEntry({
   type = 'payment',
   timestamp,
   source = 'unifiedPayment',
-  userMessage
+  userMessage,
+  userMessage_es
 }) {
   // Use getNow() for timestamp if not provided
   let timestampValue;
@@ -72,17 +74,23 @@ export function createCreditHistoryEntry({
   
   // Use 'notes' if provided, otherwise fall back to 'note' for backward compatibility
   const notesValue = notes || note || '';
+  const computed = computeUserMessageForWrite({
+    notes: notesValue,
+    source,
+    type,
+    userMessage,
+    userMessage_es
+  });
   const explicitUserMessage = typeof userMessage === 'string' ? userMessage.trim() : '';
-  const resolvedUserMessage = explicitUserMessage
-    ? explicitUserMessage
-    : computeUserMessageForWrite({ notes: notesValue, source, type });
+  const explicitUserMessageEs = typeof userMessage_es === 'string' ? userMessage_es.trim() : '';
   
   return {
     id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     amount,
     transactionId,
     notes: notesValue,  // Always use 'notes' (plural) for consistency
-    userMessage: resolvedUserMessage,
+    userMessage: explicitUserMessage || computed.userMessage,
+    userMessage_es: explicitUserMessageEs || computed.userMessage_es,
     type,
     timestamp: timestampValue,
     source

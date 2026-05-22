@@ -18,6 +18,7 @@ export function handleDecimalAmountChange(event, setter, options = {}) {
   if (next !== null) {
     setter(next);
   }
+  return next;
 }
 
 export function parseDecimalInput(value) {
