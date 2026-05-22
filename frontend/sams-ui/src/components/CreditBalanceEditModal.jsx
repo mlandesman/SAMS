@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { updateCreditBalance, addCreditHistoryEntry } from '../api/hoaDuesService';
 import { translateToSpanish } from '../api/translate';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { getMexicoDateString } from '../utils/timezone';
+import { getMexicoDateString, dateOnlyInputToMexicoISO } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
@@ -20,16 +20,6 @@ function inferCreditEntryType({ isAmountMode, mode, difference }) {
     return mode === 'add' ? 'credit_added' : 'credit_used';
   }
   return difference >= 0 ? 'credit_added' : 'credit_used';
-}
-
-function entryDateToISO(entryDate) {
-  if (!entryDate) {
-    return entryDate;
-  }
-  if (!entryDate.includes('T')) {
-    return new Date(`${entryDate}T00:00:00`).toISOString();
-  }
-  return new Date(entryDate).toISOString();
 }
 
 function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year, onUpdate, mode }) {
@@ -199,7 +189,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
         yearToUse = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
       }
       
-      const dateISO = entryDateToISO(entryDate);
+      const dateISO = dateOnlyInputToMexicoISO(entryDate);
       
       if (isAmountMode) {
         // For Add/Remove: Use direct history entry API with the amount

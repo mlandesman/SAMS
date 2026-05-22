@@ -138,6 +138,24 @@ export function getMexicoDateTime(dateInput) {
 }
 
 /**
+ * Serialize a calendar date (YYYY-MM-DD from <input type="date">) to ISO UTC
+ * for backend persistence. Interprets the date as midnight America/Cancun
+ * (UTC-5 year-round, no DST) — aligned with shared DateService semantics.
+ * @param {string} dateInput - YYYY-MM-DD or ISO string with time component
+ * @returns {string} ISO-8601 UTC string
+ */
+export function dateOnlyInputToMexicoISO(dateInput) {
+  if (!dateInput) {
+    return dateInput;
+  }
+  if (typeof dateInput === 'string' && dateInput.includes('T')) {
+    return getMexicoDateTime(dateInput).toISOString();
+  }
+  // Explicit Cancun offset (matches DateService America/Cancun, no DST)
+  return new Date(`${dateInput}T00:00:00-05:00`).toISOString();
+}
+
+/**
  * Get date range for transaction filters in Mexico timezone
  * @param {string} filterType - Type of filter (today, yesterday, etc.)
  * @param {Object} clientConfig - Client configuration containing fiscalYearStartMonth
