@@ -8,7 +8,7 @@ const CANCUN_ZONE = 'America/Cancun';
 
 /**
  * Serialize a calendar date (YYYY-MM-DD from <input type="date">) to ISO UTC
- * for backend persistence. Midnight America/Cancun — no `new Date()` parsing.
+ * for backend persistence. Midnight America/Cancun — does not use the native Date constructor.
  * @param {string} dateInput - YYYY-MM-DD or ISO string with time component
  * @returns {string} ISO-8601 UTC string
  */
