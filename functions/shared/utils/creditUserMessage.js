@@ -169,6 +169,16 @@ export function lookupSpanishForEnglishTemplate(englishText) {
 }
 
 /**
+ * When the owner edits English, derive Spanish unless ES was manually touched:
+ * known EN templates map deterministically; custom EN clears ES for Translate/deepl.
+ * @param {string} englishText
+ * @returns {string}
+ */
+export function deriveSpanishCompanionForEnglishInput(englishText) {
+  return lookupSpanishForEnglishTemplate(englishText) || '';
+}
+
+/**
  * @param {{ notes?: string, source?: string, type?: string, userMessage?: string, userMessage_es?: string }} params
  * @returns {{ userMessage: string, userMessage_es: string }}
  */
@@ -182,7 +192,9 @@ export function computeUserMessageForWrite({ notes, source, type, userMessage, u
   if (hasExplicitEn || hasExplicitEs) {
     return {
       userMessage: hasExplicitEn ? (explicitEn || bilingual.en) : bilingual.en,
-      userMessage_es: hasExplicitEs ? explicitEs : bilingual.es
+      userMessage_es: hasExplicitEs
+        ? explicitEs
+        : (lookupSpanishForEnglishTemplate(explicitEn) || '')
     };
   }
 

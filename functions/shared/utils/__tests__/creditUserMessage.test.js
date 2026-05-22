@@ -102,6 +102,30 @@ describe('creditUserMessage contract', () => {
         userMessage_es: ''
       })).toEqual({ userMessage: 'Custom EN', userMessage_es: '' });
     });
+
+    test('explicit EN without ES uses template lookup not generic autogen', () => {
+      expect(computeUserMessageForWrite({
+        notes: 'internal',
+        source: 'hoaDues',
+        type: 'credit_added',
+        userMessage: 'Credit added from HOA dues payment'
+      })).toEqual({
+        userMessage: 'Credit added from HOA dues payment',
+        userMessage_es: 'Crédito agregado por pago de cuotas de mantenimiento'
+      });
+    });
+
+    test('explicit custom EN without ES leaves ES empty', () => {
+      expect(computeUserMessageForWrite({
+        notes: 'internal',
+        source: 'admin',
+        type: 'credit_added',
+        userMessage: 'Owner goodwill credit for landscaping'
+      })).toEqual({
+        userMessage: 'Owner goodwill credit for landscaping',
+        userMessage_es: ''
+      });
+    });
   });
 
   describe('resolveCreditUserMessage (read-side legacy fallback)', () => {
