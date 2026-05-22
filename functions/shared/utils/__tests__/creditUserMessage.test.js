@@ -188,6 +188,15 @@ describe('creditUserMessage contract', () => {
         type: 'credit_added'
       })).toBe('Crédito agregado por pago de cuotas de mantenimiento');
     });
+
+    test('honors explicitly persisted empty userMessage_es', () => {
+      expect(resolveCreditUserMessageEs({
+        userMessage: 'Custom owner note',
+        userMessage_es: '',
+        source: 'admin',
+        type: 'credit_added'
+      })).toBe('');
+    });
   });
 
   describe('resolveCreditUserMessageForLocale', () => {

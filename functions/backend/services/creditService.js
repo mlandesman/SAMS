@@ -593,11 +593,14 @@ class CreditService {
       
       const originalEntry = history[entryIndex];
       const inferEntryType = (entry) => {
+        const amount = typeof entry.amount === 'number' ? entry.amount : 0;
+        if (amount !== 0) {
+          return amount > 0 ? 'credit_added' : 'credit_used';
+        }
         if (entry.type && entry.type !== 'undefined') {
           return entry.type;
         }
-        const amount = typeof entry.amount === 'number' ? entry.amount : 0;
-        return amount > 0 ? 'credit_added' : 'credit_used';
+        return 'credit_added';
       };
       const oldType = inferEntryType(originalEntry);
       const oldSource = originalEntry.source || 'admin';

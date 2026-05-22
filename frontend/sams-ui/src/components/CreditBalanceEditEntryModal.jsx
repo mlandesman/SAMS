@@ -23,6 +23,16 @@ function inferCreditEntryType(amountValue) {
   return amountValue > 0 ? 'credit_added' : 'credit_used';
 }
 
+function inferCreditEntryTypeFromAmount(amountValue, storedType) {
+  if (typeof amountValue === 'number' && amountValue !== 0) {
+    return amountValue > 0 ? 'credit_added' : 'credit_used';
+  }
+  if (storedType && storedType !== 'undefined') {
+    return storedType;
+  }
+  return 'credit_added';
+}
+
 function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate }) {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
@@ -53,7 +63,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
       
       const amountValue = entry.amount || 0;
       const entrySource = entry.source || 'admin';
-      const entryType = entry.type || inferCreditEntryType(amountValue);
+      const entryType = inferCreditEntryTypeFromAmount(amountValue, entry.type);
       const entryContext = {
         userMessage: entry.userMessage,
         userMessage_es: entry.userMessage_es,

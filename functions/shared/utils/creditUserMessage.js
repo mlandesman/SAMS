@@ -250,8 +250,8 @@ export function resolveCreditUserMessage({ userMessage, userMessage_es, notes, s
  * @returns {string}
  */
 export function resolveCreditUserMessageEs({ userMessage, userMessage_es, notes, source, type }) {
-  if (userMessage_es && typeof userMessage_es === 'string' && userMessage_es.trim()) {
-    return userMessage_es.trim();
+  if (userMessage_es !== undefined && userMessage_es !== null) {
+    return typeof userMessage_es === 'string' ? userMessage_es.trim() : '';
   }
 
   const resolvedEn = resolveCreditUserMessage({ userMessage, notes, source, type });
