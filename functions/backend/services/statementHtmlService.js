@@ -1825,10 +1825,15 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           const showCharge = !isAdjustment && item.charge > 0;
           const showPayment = item.payment !== 0;
           const descriptionText = isAdjustment
-            ? resolveCreditUserMessageForLocale(
-              { userMessage: item.userMessage, userMessage_es: item.userMessage_es },
+            ? (resolveCreditUserMessageForLocale(
+              {
+                userMessage: item.userMessage,
+                userMessage_es: item.userMessage_es,
+                source: item.source,
+                type: item.amount > 0 || item.charge > 0 ? 'credit_added' : 'credit_used'
+              },
               language
-            )
+            ) || translateDescription(item.description, language))
             : translateDescription(item.description, language);
           return `
         <tr class="${isAdjustment ? 'credit-adjustment-row' : 'clickable'}" data-transaction-id="${item.transactionId || ''}">

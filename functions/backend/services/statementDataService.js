@@ -1182,7 +1182,9 @@ function buildLedgerInputs(transactions = []) {
       penaltyRef: txn.penaltyRef || null,
       source: txn.source || null,
       isStandaloneCredit: txn.isStandaloneCredit || false,
-      creditEntryId: txn.creditEntryId || null
+      creditEntryId: txn.creditEntryId || null,
+      userMessage: txn.userMessage || null,
+      userMessage_es: txn.userMessage_es || null
     };
 
     if (txn.type === 'payment' || txn.payment > 0) {
@@ -2480,7 +2482,9 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         penaltyRef: row.penaltyRef || null,
         source: row.source || null,
         isStandaloneCredit: row.isStandaloneCredit || false,
-        creditEntryId: row.creditEntryId || null
+        creditEntryId: row.creditEntryId || null,
+        userMessage: row.userMessage || null,
+        userMessage_es: row.userMessage_es || null
       }));
     
     // Step 9: Fetch credit balance
@@ -3068,7 +3072,9 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       // Credit adjustment specific fields
       source: txn.source || null,
       isStandaloneCredit: txn.isStandaloneCredit || false,
-      creditEntryId: txn.creditEntryId || null
+      creditEntryId: txn.creditEntryId || null,
+      userMessage: txn.userMessage || null,
+      userMessage_es: txn.userMessage_es || null
     };
   });
   
