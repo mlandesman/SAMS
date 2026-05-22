@@ -2013,6 +2013,10 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 : formatCurrency(amount);
               
               let notes = resolveCreditUserMessageForLocale(entry, language);
+              if (!notes) {
+                const enNotes = resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
+                notes = translateDescription(enNotes, language);
+              }
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }
