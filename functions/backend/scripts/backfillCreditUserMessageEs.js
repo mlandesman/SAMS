@@ -21,7 +21,9 @@ import {
 } from '../../shared/utils/creditUserMessage.js';
 
 const DEFAULT_CLIENTS = ['AVII', 'MTC'];
-const DEEPL_BASE_URL = 'https://api-free.deepl.com/v2/translate';
+const DEEPL_FREE_BASE_URL = 'https://api-free.deepl.com/v2/translate';
+const DEEPL_PRO_BASE_URL = 'https://api.deepl.com/v2/translate';
+const RETRYABLE_STATUS_CODES = new Set([429, 503, 504]);
 const PRODUCTION_PROJECT_ID = 'sams-sandyland-prod';
 
 function loadScriptEnv() {
@@ -38,16 +40,22 @@ function parseArgs(argv = []) {
   const allowMissingDeepL = args.includes('--allow-missing-deepl');
   const hasHelp = args.includes('--help') || args.includes('-h');
   const clientsArg = args.find((arg) => arg.startsWith('--clients='));
+  const deeplDelayArg = args.find((arg) => arg.startsWith('--deepl-delay-ms='));
 
   const clients = clientsArg
     ? clientsArg.split('=').slice(1).join('=').split(',').map((v) => v.trim()).filter(Boolean)
     : DEFAULT_CLIENTS;
+
+  const deeplDelayMs = deeplDelayArg
+    ? Math.max(0, Number.parseInt(deeplDelayArg.split('=').slice(1).join('='), 10) || 200)
+    : 200;
 
   return {
     writeEnabled: !hasDryRun,
     useProduction,
     allowMissingDeepL,
     deepLAuthKey: String(process.env.DEEPL_AUTH_KEY || '').trim(),
+    deeplDelayMs,
     clients,
     help: hasHelp
   };
@@ -63,8 +71,51 @@ function printHelp() {
   console.log('  --dry-run              Scan/report only, no writes');
   console.log('  --prod                 Use Firebase production project');
   console.log('  --allow-missing-deepl  Skip DeepL for custom messages when key missing');
+  console.log('  --deepl-delay-ms=200   Pause between DeepL requests (rate-limit safety)');
   console.log('  --clients=AVII,MTC     Comma-separated client IDs');
   console.log('  --help                 Show this message');
+}
+
+function getDeepLBaseUrl(authKey) {
+  return String(authKey || '').trim().endsWith(':fx')
+    ? DEEPL_FREE_BASE_URL
+    : DEEPL_PRO_BASE_URL;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function toRetryAfterMs(headerValue) {
+  if (!headerValue) return null;
+  const rawValue = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  if (!rawValue) return null;
+
+  const asNumber = Number.parseInt(String(rawValue), 10);
+  if (Number.isFinite(asNumber) && asNumber >= 0) {
+    return asNumber * 1000;
+  }
+
+  const asDate = new Date(rawValue);
+  if (Number.isFinite(asDate.getTime())) {
+    const deltaMs = asDate.getTime() - Date.now();
+    return deltaMs > 0 ? deltaMs : 0;
+  }
+
+  return null;
+}
+
+function computeBackoffDelayMs(attemptNumber, retryAfterMs = null) {
+  if (Number.isFinite(retryAfterMs) && retryAfterMs >= 0) {
+    return retryAfterMs;
+  }
+
+  const baseDelayMs = 800;
+  const exponentialMs = baseDelayMs * (2 ** Math.max(0, attemptNumber - 1));
+  const jitterMs = Math.floor(Math.random() * 250);
+  return exponentialMs + jitterMs;
 }
 
 async function initializeDb(useProduction) {
@@ -78,24 +129,98 @@ async function initializeDb(useProduction) {
   return getDb();
 }
 
-async function translateWithDeepL(text, authKey, cache) {
+async function translateWithDeepL(text, authKey, cache, options = {}) {
   const key = text.trim();
+  if (!key) {
+    return { ok: false, translatedText: '', error: 'Empty text' };
+  }
   if (cache.has(key)) {
     return cache.get(key);
   }
-  const response = await axios.post(
-    DEEPL_BASE_URL,
-    new URLSearchParams({
-      auth_key: authKey,
-      text: key,
-      target_lang: 'ES',
-      source_lang: 'EN'
-    }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 30000 }
-  );
-  const translated = String(response.data?.translations?.[0]?.text || '').trim();
-  cache.set(key, translated);
-  return translated;
+
+  const baseUrl = getDeepLBaseUrl(authKey);
+  const maxAttempts = 5;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await axios.post(
+        baseUrl,
+        {
+          text: [key],
+          target_lang: 'ES',
+          source_lang: 'EN',
+          split_sentences: '1',
+          preserve_formatting: true,
+          formality: 'default',
+          tag_handling: 'html'
+        },
+        {
+          headers: {
+            Authorization: `DeepL-Auth-Key ${authKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      const translatedText = String(response.data?.translations?.[0]?.text || '').trim();
+      if (!translatedText) {
+        const result = { ok: false, translatedText: '', error: 'DeepL returned empty translation' };
+        cache.set(key, result);
+        return result;
+      }
+
+      const result = { ok: true, translatedText };
+      cache.set(key, result);
+      return result;
+    } catch (error) {
+      const statusCode = error?.response?.status;
+      const retryAfterMs = toRetryAfterMs(error?.response?.headers?.['retry-after']);
+      const detail = error?.response?.data?.message || error?.message || 'DeepL failure';
+
+      if (statusCode === 456) {
+        const result = {
+          ok: false,
+          translatedText: '',
+          error: 'DeepL quota exceeded (HTTP 456)',
+          hardStop: true
+        };
+        cache.set(key, result);
+        return result;
+      }
+
+      if (statusCode === 403) {
+        const endpointHint = baseUrl.includes('api-free')
+          ? 'Free key (:fx) must use api-free.deepl.com; Pro keys use api.deepl.com'
+          : 'Pro key must use api.deepl.com; Free keys (:fx) use api-free.deepl.com';
+        const result = {
+          ok: false,
+          translatedText: '',
+          error: `DeepL authentication failed (HTTP 403). ${endpointHint}. ${detail}`,
+          hardStop: true
+        };
+        cache.set(key, result);
+        return result;
+      }
+
+      const retryable = RETRYABLE_STATUS_CODES.has(statusCode);
+      if (!retryable || attempt === maxAttempts) {
+        const result = {
+          ok: false,
+          translatedText: '',
+          error: `DeepL translation failed (${statusCode || 'unknown'}): ${detail}`
+        };
+        cache.set(key, result);
+        return result;
+      }
+
+      await delay(computeBackoffDelayMs(attempt, retryAfterMs));
+    }
+  }
+
+  const result = { ok: false, translatedText: '', error: 'DeepL translation failed after retries' };
+  cache.set(key, result);
+  return result;
 }
 
 function resolveMissingEs(entry) {
@@ -172,7 +297,32 @@ async function processCreditBalancesDoc(docRef, data, options, translationCache,
           return { touched: false, stopNow: true };
         }
         try {
-          translatedEs = await translateWithDeepL(resolution.resolvedEn, options.deepLAuthKey, translationCache);
+          if (options.deeplDelayMs > 0) {
+            await delay(options.deeplDelayMs);
+          }
+          const deepLResult = await translateWithDeepL(
+            resolution.resolvedEn,
+            options.deepLAuthKey,
+            translationCache,
+            options
+          );
+          if (deepLResult.hardStop) {
+            summary.hardStop = true;
+          }
+          if (!deepLResult.ok) {
+            summary.failures += 1;
+            summary.errors.push({
+              docId: docRef.id,
+              unitId,
+              entryId: entry.id,
+              error: deepLResult.error
+            });
+            if (deepLResult.hardStop) {
+              return { touched: false, stopNow: true };
+            }
+            continue;
+          }
+          translatedEs = deepLResult.translatedText;
           summary.deepLHits += 1;
         } catch (error) {
           summary.failures += 1;
@@ -263,6 +413,11 @@ async function main() {
   }
 
   console.log(`[backfillCreditUserMessageEs] mode=${options.writeEnabled ? 'write' : 'dry-run'} env=${options.useProduction ? 'prod' : 'dev'}`);
+  if (options.deepLAuthKey) {
+    console.log(`[backfillCreditUserMessageEs] DeepL endpoint=${getDeepLBaseUrl(options.deepLAuthKey)} delayMs=${options.deeplDelayMs}`);
+  } else {
+    console.log('[backfillCreditUserMessageEs] DEEPL_AUTH_KEY not set — custom messages require --allow-missing-deepl or a configured key');
+  }
   const summaries = [];
 
   for (const clientId of options.clients) {
