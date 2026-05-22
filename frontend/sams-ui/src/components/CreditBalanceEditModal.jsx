@@ -22,6 +22,16 @@ function inferCreditEntryType({ isAmountMode, mode, difference }) {
   return difference >= 0 ? 'credit_added' : 'credit_used';
 }
 
+function entryDateToISO(entryDate) {
+  if (!entryDate) {
+    return entryDate;
+  }
+  if (!entryDate.includes('T')) {
+    return new Date(`${entryDate}T00:00:00`).toISOString();
+  }
+  return new Date(entryDate).toISOString();
+}
+
 function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year, onUpdate, mode }) {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
@@ -29,13 +39,6 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
   
   // mode can be 'add', 'remove', or undefined (for edit/new balance mode)
   const isAmountMode = mode === 'add' || mode === 'remove';
-  
-  // Debug logging when mode changes
-  React.useEffect(() => {
-    if (isOpen) {
-      console.log('[CREDIT EDIT MODAL] Modal opened:', { mode, isAmountMode, currentBalance });
-    }
-  }, [isOpen, mode, isAmountMode, currentBalance]);
   
   const [newBalance, setNewBalance] = useState('');
   const [amount, setAmount] = useState(''); // For add/remove mode
@@ -111,6 +114,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       if (!userMessageEs.trim()) {
         const result = await translateToSpanish(userMessage.trim());
         if (result.success) {
+          userMessageEsTouchedRef.current = true;
           setUserMessageEs(result.translatedText);
         }
       }
@@ -133,16 +137,6 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       const amountStr = amount ? amount.toString().trim() : '';
       const amountValue = parseDecimalInput(amountStr);
       
-      console.log('[CREDIT EDIT MODAL] Amount mode save:', { 
-        mode, 
-        amount, 
-        amountStr, 
-        amountValue, 
-        currentBalance,
-        isNaN: isNaN(amountValue),
-        isZero: amountValue === 0
-      });
-      
       if (!amountStr || isNaN(amountValue) || amountValue === 0) {
         setError(t('creditEdit.errorNonZeroAmount'));
         return;
@@ -153,15 +147,8 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       
       if (mode === 'add') {
         newBalanceValue = currentBalanceValue + amountValue;
-        console.log('[CREDIT EDIT MODAL] Add calculation:', { currentBalanceValue, amountValue, newBalanceValue });
       } else { // mode === 'remove'
         newBalanceValue = currentBalanceValue - amountValue;
-        console.log('[CREDIT EDIT MODAL] Remove calculation:', { 
-          currentBalanceValue, 
-          amountValue, 
-          newBalanceValue,
-          calculation: `${currentBalanceValue} - ${amountValue} = ${newBalanceValue}`
-        });
       }
     } else {
       // Balance mode: validate new balance
@@ -212,29 +199,13 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
         yearToUse = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
       }
       
+      const dateISO = entryDateToISO(entryDate);
+      
       if (isAmountMode) {
         // For Add/Remove: Use direct history entry API with the amount
         const amountValue = parseDecimalInput(amount);
         // For remove mode, make amount negative
         const amountToAdd = mode === 'remove' ? -amountValue : amountValue;
-        
-        console.log('[CREDIT EDIT MODAL] Calling addCreditHistoryEntry API:', {
-          clientId: selectedClient.id,
-          unitId,
-          amount: amountToAdd,
-          date: entryDate,
-          notes: notes.trim(),
-          mode
-        });
-        
-        // Convert date to ISO string format if needed
-        let dateISO = entryDate;
-        if (entryDate && !entryDate.includes('T')) {
-          // If it's just a date (YYYY-MM-DD), convert to ISO string
-          dateISO = new Date(entryDate + 'T00:00:00').toISOString();
-        } else if (entryDate) {
-          dateISO = new Date(entryDate).toISOString();
-        }
         
         await addCreditHistoryEntry(
           selectedClient.id,
@@ -248,21 +219,13 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
         );
       } else {
         // For Edit Balance: Use updateCreditBalance API with new balance
-        console.log('[CREDIT EDIT MODAL] Calling updateCreditBalance API:', {
-          clientId: selectedClient.id,
-          unitId,
-          year: yearToUse,
-          newBalanceValue,
-          currentBalance
-        });
-        
         await updateCreditBalance(
           selectedClient.id,
           unitId,
           yearToUse,
           newBalanceValue,
           notes.trim(),
-          entryDate, // Pass date for history entry
+          dateISO,
           userMessage.trim(),
           userMessageEs.trim()
         );

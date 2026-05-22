@@ -81,16 +81,20 @@ export function createCreditHistoryEntry({
     userMessage,
     userMessage_es
   });
-  const explicitUserMessage = typeof userMessage === 'string' ? userMessage.trim() : '';
-  const explicitUserMessageEs = typeof userMessage_es === 'string' ? userMessage_es.trim() : '';
+  const hasExplicitUserMessage = userMessage !== undefined && userMessage !== null;
+  const hasExplicitUserMessageEs = userMessage_es !== undefined && userMessage_es !== null;
   
   return {
     id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     amount,
     transactionId,
     notes: notesValue,  // Always use 'notes' (plural) for consistency
-    userMessage: explicitUserMessage || computed.userMessage,
-    userMessage_es: explicitUserMessageEs || computed.userMessage_es,
+    userMessage: hasExplicitUserMessage
+      ? (String(userMessage).trim() || computed.userMessage)
+      : computed.userMessage,
+    userMessage_es: hasExplicitUserMessageEs
+      ? String(userMessage_es).trim()
+      : computed.userMessage_es,
     type,
     timestamp: timestampValue,
     source

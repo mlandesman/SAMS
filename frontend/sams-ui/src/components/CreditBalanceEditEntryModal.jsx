@@ -103,6 +103,7 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
       if (!userMessageEs.trim()) {
         const result = await translateToSpanish(userMessage.trim());
         if (result.success) {
+          userMessageEsTouchedRef.current = true;
           setUserMessageEs(result.translatedText);
         }
       }
