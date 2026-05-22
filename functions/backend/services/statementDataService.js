@@ -1195,7 +1195,8 @@ function buildLedgerInputs(transactions = []) {
       isStandaloneCredit: txn.isStandaloneCredit || false,
       creditEntryId: txn.creditEntryId || null,
       userMessage: txn.userMessage || null,
-      userMessage_es: txn.userMessage_es || null
+      userMessage_es: txn.userMessage_es || null,
+      persistedUserMessageEs: txn.persistedUserMessageEs
     };
 
     if (txn.type === 'payment' || txn.payment > 0) {
@@ -2250,6 +2251,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               description: resolveCreditUserMessage(creditEntryContext) || 'Credit Adjustment',
               userMessage: resolveCreditUserMessage(creditEntryContext),
               userMessage_es: resolveCreditUserMessageEs(creditEntryContext),
+              persistedUserMessageEs: entry.userMessage_es,
               // Admin credit adjustment: affects net position once (reduces balance)
               // Preserve sign from credit history (positive credit added)
               amount: amountPesos,
@@ -2358,6 +2360,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               notes: activityEntryContext.notes,
               userMessage: resolveCreditUserMessage(activityEntryContext),
               userMessage_es: resolveCreditUserMessageEs(activityEntryContext),
+              persistedUserMessageEs: entry.userMessage_es,
               source: entry.source || null,
               creditBefore: entry.creditBefore ? centavosToPesos(entry.creditBefore) : null,
               creditAfter: entry.creditAfter ? centavosToPesos(entry.creditAfter) : null
@@ -2491,7 +2494,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         isStandaloneCredit: row.isStandaloneCredit || false,
         creditEntryId: row.creditEntryId || null,
         userMessage: row.userMessage || null,
-        userMessage_es: row.userMessage_es || null
+        userMessage_es: row.userMessage_es || null,
+        persistedUserMessageEs: row.persistedUserMessageEs
       }));
     
     // Step 9: Fetch credit balance
@@ -3081,7 +3085,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       isStandaloneCredit: txn.isStandaloneCredit || false,
       creditEntryId: txn.creditEntryId || null,
       userMessage: txn.userMessage || null,
-      userMessage_es: txn.userMessage_es || null
+      userMessage_es: txn.userMessage_es || null,
+      persistedUserMessageEs: txn.persistedUserMessageEs
     };
   });
   

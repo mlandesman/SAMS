@@ -17,7 +17,7 @@ import { joinOwnerNames } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { generatePropaneTrendSvg } from './propaneGraphSvgService.js';
-import { resolveCreditUserMessageForLocale } from '../../shared/utils/creditUserMessage.js';
+import { resolveCreditUserMessageForLocale, lookupSpanishForEnglishTemplate } from '../../shared/utils/creditUserMessage.js';
 
 /**
  * Format currency (pesos)
@@ -168,6 +168,28 @@ function translateDescription(description, language) {
   }
   
   return translated;
+}
+
+/**
+ * Resolve credit owner-facing text for statement rows with approved ES templates first.
+ */
+function resolveCreditNotesForDisplay(entry, language) {
+  const localized = resolveCreditUserMessageForLocale(entry, language);
+  if (localized) {
+    return localized;
+  }
+
+  const isSpanish = language === 'spanish' || language === 'es';
+  if (!isSpanish) {
+    return resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
+  }
+
+  if (entry.persistedUserMessageEs !== undefined && entry.persistedUserMessageEs !== null) {
+    return '';
+  }
+
+  const enNotes = resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
+  return lookupSpanishForEnglishTemplate(enNotes) || translateDescription(enNotes, language);
 }
 
 /**
@@ -1825,15 +1847,16 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           const showCharge = !isAdjustment && item.charge > 0;
           const showPayment = item.payment !== 0;
           const descriptionText = isAdjustment
-            ? (resolveCreditUserMessageForLocale(
+            ? resolveCreditNotesForDisplay(
               {
                 userMessage: item.userMessage,
                 userMessage_es: item.userMessage_es,
+                persistedUserMessageEs: item.persistedUserMessageEs,
                 source: item.source,
                 type: item.amount > 0 || item.charge > 0 ? 'credit_added' : 'credit_used'
               },
               language
-            ) || translateDescription(item.description, language))
+            )
             : translateDescription(item.description, language);
           return `
         <tr class="${isAdjustment ? 'credit-adjustment-row' : 'clickable'}" data-transaction-id="${item.transactionId || ''}">
@@ -2012,11 +2035,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
                 ? formatCurrency(Math.abs(amount), true)
                 : formatCurrency(amount);
               
-              let notes = resolveCreditUserMessageForLocale(entry, language);
-              if (!notes) {
-                const enNotes = resolveCreditUserMessageForLocale(entry, 'english') || entry.notes || '';
-                notes = translateDescription(enNotes, language);
-              }
+              let notes = resolveCreditNotesForDisplay(entry, language);
               if (notes.length > 60) {
                 notes = notes.substring(0, 57) + '...';
               }

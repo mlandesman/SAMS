@@ -156,6 +156,14 @@ describe('creditUserMessage contract', () => {
         type: 'credit_used'
       })).toBe('Credit applied to HOA dues');
     });
+
+    test('does not expose prefixed HOA audit notes on legacy rows', () => {
+      expect(resolveCreditUserMessage({
+        notes: 'Manual HOA adjustment: corrected balance',
+        source: 'admin',
+        type: 'credit_added'
+      })).toBe('Credit adjustment');
+    });
   });
 
   describe('resolveCreditUserMessageEs', () => {
