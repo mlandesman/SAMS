@@ -52,3 +52,37 @@ export function dateOnlyInputToMexicoISO(dateInput) {
 
   return dt.startOf('day').toUTC().toISO();
 }
+
+/**
+ * Format a stored timestamp for <input type="date"> in America/Cancun (yyyy-MM-dd).
+ * @param {string|Date|{ raw?: string, _seconds?: number }} timestamp
+ * @returns {string}
+ */
+export function timestampToMexicoDateInput(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  if (typeof timestamp === 'string') {
+    const dt = DateTime.fromISO(timestamp, { zone: CANCUN_ZONE });
+    return dt.isValid ? dt.toFormat('yyyy-MM-dd') : '';
+  }
+
+  if (typeof timestamp === 'object' && timestamp !== null) {
+    if (typeof timestamp.raw === 'string') {
+      const dt = DateTime.fromISO(timestamp.raw, { zone: CANCUN_ZONE });
+      return dt.isValid ? dt.toFormat('yyyy-MM-dd') : '';
+    }
+    if (typeof timestamp._seconds === 'number') {
+      const dt = DateTime.fromSeconds(timestamp._seconds, { zone: CANCUN_ZONE });
+      return dt.isValid ? dt.toFormat('yyyy-MM-dd') : '';
+    }
+  }
+
+  if (timestamp instanceof Date) {
+    const dt = DateTime.fromJSDate(timestamp).setZone(CANCUN_ZONE);
+    return dt.isValid ? dt.toFormat('yyyy-MM-dd') : '';
+  }
+
+  return '';
+}
