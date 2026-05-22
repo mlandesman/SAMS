@@ -26,6 +26,8 @@ describe('creditUserMessage contract', () => {
       const internalNote = 'HOA dues payment PAY-101-20250717-25 (overpayment +$50.00, credit used $20.00)';
       expect(isNotesUserFriendly(internalNote)).toBe(false);
       expect(isNotesUserFriendly('Adjustment | Amount: $100.00 | Source: admin')).toBe(false);
+      expect(isNotesUserFriendly('Manual HOA adjustment: corrected balance')).toBe(false);
+      expect(isNotesUserFriendly('Manual HOA credit adjustment')).toBe(false);
     });
 
     test('rejects long notes', () => {

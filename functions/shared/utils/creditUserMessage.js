@@ -15,7 +15,9 @@ const INTERNAL_NOTE_PATTERNS = [
   /\(overpayment/i,
   /repair \+\$/i,
   /credit used \$/i,
-  /\bTXN[-:]/i
+  /\bTXN[-:]/i,
+  /\bManual HOA adjustment:/i,
+  /^Manual HOA credit adjustment$/i
 ];
 
 /** Maximum length for notes considered concise enough for direct client display. */
