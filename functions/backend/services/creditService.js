@@ -275,9 +275,9 @@ class CreditService {
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
-      // Validate date format
-      const dateMillis = Date.parse(date);
-      if (isNaN(dateMillis)) {
+      // Validate date format (America/Cancun — consistent with updateCreditHistoryEntry)
+      const dt = DateTime.fromISO(String(date), { zone: 'America/Cancun' });
+      if (!dt.isValid) {
         throw new Error(`Invalid date format: ${date}`);
       }
       
@@ -301,7 +301,7 @@ class CreditService {
         transactionId: transactionId || null,
         notes: note,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
-        timestamp: new Date(dateMillis).toISOString(), // Use provided date
+        timestamp: dt.toUTC().toISO(),
         source: normalizedSource,
         userMessage,
         userMessage_es

@@ -28,6 +28,17 @@ import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import propaneReadingsService from './propaneReadingsService.js';
 
+/** Prefer amount sign over stored type when they may disagree (legacy data). */
+function inferCreditEntryTypeFromAmount(amountCentavos, storedType) {
+  if (typeof amountCentavos === 'number' && amountCentavos !== 0) {
+    return amountCentavos > 0 ? 'credit_added' : 'credit_used';
+  }
+  if (storedType && storedType !== 'undefined') {
+    return storedType;
+  }
+  return 'credit_added';
+}
+
 /**
  * Get utility graph data for a unit
  * Returns propane trend data for MTC, water bars for AVII
@@ -2231,7 +2242,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               userMessage_es: entry.userMessage_es,
               notes: entry.notes || '',
               source: entry.source,
-              type: entry.type || (amountCentavos >= 0 ? 'credit_added' : 'credit_used')
+              type: inferCreditEntryTypeFromAmount(amountCentavos, entry.type)
             };
             creditAdjustments.push({
               type: 'credit_adjustment',
@@ -2329,12 +2340,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const entryAmountPesos = centavosToPesos(entryAmountCentavos);
             
-            // Infer type from amount if not present (for unified payment entries)
-            // Positive amount = credit added, negative amount = credit used
-            let entryType = entry.type;
-            if (!entryType || entryType === 'undefined') {
-              entryType = entryAmountCentavos >= 0 ? 'credit_added' : 'credit_used';
-            }
+            // Infer type from amount sign (authoritative) — stored type may be stale on legacy rows
+            const entryType = inferCreditEntryTypeFromAmount(entryAmountCentavos, entry.type);
             
             const activityEntryContext = {
               userMessage: entry.userMessage,
