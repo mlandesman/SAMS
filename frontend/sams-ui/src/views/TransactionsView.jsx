@@ -1843,7 +1843,8 @@ function TransactionsView() {
               // For adjustments, store the original amount with sign for use when saving
               originalAmount: extractAmount(selectedTransaction.amount, true),
               clearedDate: selectedTransaction.clearedDate || null,
-              vendorId: selectedTransaction.vendorId || '',  // Use ID field
+              vendorId: selectedTransaction.vendorId || '',
+              vendorName: selectedTransaction.vendorName || selectedTransaction.vendor || '',
               categoryId: selectedTransaction.categoryId || '',  // Use ID field
               accountId: selectedTransaction.accountId || '',  // Use ID field
               paymentMethodId: selectedTransaction.paymentMethodId || selectedTransaction.paymentMethod || '',  // Check both ID and string

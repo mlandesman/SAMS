@@ -47,24 +47,18 @@ function getAccountDefaultBankFees(rawAccounts, accountId) {
 }
 
 function resolveDepositVendor(formData, clientData) {
-  const matchedVendor = formData.vendorId
-    ? clientData.vendors.find((v) => v.id === formData.vendorId)
-    : null;
-  const displayText = (formData.vendorName || matchedVendor?.name || '').trim();
-
-  if (!displayText || displayText.toLowerCase() === 'deposit') {
+  const vendorId = formData.vendorId;
+  if (!vendorId || vendorId === DEPOSIT_VENDOR_OPTION) {
     return { vendorId: 'deposit', vendorName: 'Deposit' };
   }
-
-  if (formData.vendorId && matchedVendor) {
-    return { vendorId: formData.vendorId, vendorName: matchedVendor.name };
-  }
-
-  return { vendorId: null, vendorName: displayText };
+  const matchedVendor = clientData.vendors.find((v) => v.id === vendorId);
+  return {
+    vendorId,
+    vendorName: matchedVendor?.name || formData.vendorName || '',
+  };
 }
 
 const DEPOSIT_VENDOR_OPTION = 'deposit';
-const CUSTOM_VENDOR_OPTION = '__custom__';
 
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
@@ -91,8 +85,8 @@ const UnifiedExpenseEntry = ({
     date: getMexicoDateString(), // Use Mexico timezone for consistent date
     amount: '',
     categoryId: '', // Stores category ID
-    vendorId: '',   // Stores vendor ID
-    vendorName: '', // Free-text vendor name (deposit mode)
+    vendorId: '',   // Stores vendor ID (empty = synthetic Deposit in deposit mode)
+    vendorName: '',
     notes: '',
     accountId: '',     // Stores account ID
     paymentMethodId: '', // Stores payment method ID
@@ -125,14 +119,13 @@ const UnifiedExpenseEntry = ({
   // Bank fees checkbox — default from selected account's addBankFees config
   const [addBankFees, setAddBankFees] = useState(false);
   const [transactionType, setTransactionType] = useState('expense');
-  const [depositVendorSelection, setDepositVendorSelection] = useState(DEPOSIT_VENDOR_OPTION);
   const isClearedTransaction = Boolean(initialData?.clearedDate);
   const isDepositMode = transactionType === 'income';
   const activeVendors = clientData.vendors.filter(
     (vendor) => vendor.status !== 'inactive' || vendor.id === formData.vendorId
   );
 
-  const showDepositCustomVendorInput = () => depositVendorSelection === CUSTOM_VENDOR_OPTION;
+  const getDepositVendorSelectValue = () => formData.vendorId || DEPOSIT_VENDOR_OPTION;
 
   const getEntryTitle = () => {
     if (initialData) {
@@ -152,27 +145,11 @@ const UnifiedExpenseEntry = ({
   };
 
   const handleDepositVendorSelectChange = (selectedValue) => {
-    setDepositVendorSelection(selectedValue);
-
     if (selectedValue === DEPOSIT_VENDOR_OPTION) {
       setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
-    } else if (selectedValue === CUSTOM_VENDOR_OPTION) {
-      setFormData((prev) => ({ ...prev, vendorId: '', vendorName: '' }));
     } else {
       handleVendorChange(selectedValue);
     }
-
-    if (fieldErrors.vendorId) {
-      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
-    }
-  };
-
-  const handleDepositCustomVendorNameChange = (customName) => {
-    setFormData((prev) => ({
-      ...prev,
-      vendorId: '',
-      vendorName: customName,
-    }));
 
     if (fieldErrors.vendorId) {
       setFieldErrors((prev) => ({ ...prev, vendorId: null }));
@@ -266,19 +243,6 @@ const UnifiedExpenseEntry = ({
     }
   };
 
-  const syncDepositVendorSelection = (vendorId, vendorName) => {
-    if (vendorId && vendorId !== 'deposit') {
-      setDepositVendorSelection(vendorId);
-      return;
-    }
-    const name = (vendorName || '').trim();
-    if (!name || name.toLowerCase() === 'deposit') {
-      setDepositVendorSelection(DEPOSIT_VENDOR_OPTION);
-      return;
-    }
-    setDepositVendorSelection(CUSTOM_VENDOR_OPTION);
-  };
-
   const handleTransactionTypeChange = (nextType) => {
     if (nextType === transactionType) {
       return;
@@ -286,11 +250,8 @@ const UnifiedExpenseEntry = ({
 
     if (nextType === 'income') {
       setAddBankFees(false);
-      const hasVendorValue = Boolean(formData.vendorId || formData.vendorName?.trim());
-      if (hasVendorValue) {
-        syncDepositVendorSelection(formData.vendorId, formData.vendorName);
-      } else {
-        setDepositVendorSelection(DEPOSIT_VENDOR_OPTION);
+      const hasRealVendor = Boolean(formData.vendorId && formData.vendorId !== DEPOSIT_VENDOR_OPTION);
+      if (!hasRealVendor) {
         setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
       }
     }
@@ -803,12 +764,11 @@ const UnifiedExpenseEntry = ({
       } else if (initialData.type !== 'adjustment') {
         setTransactionType('expense');
       }
-      syncDepositVendorSelection(initialData.vendorId, initialData.vendorName);
       setFormData(prev => ({
         ...prev,
         date: initialData.date || prev.date,
         amount: initialData.amount || '',
-        vendorId: initialData.vendorId || '',
+        vendorId: initialData.vendorId === 'deposit' ? '' : (initialData.vendorId || ''),
         vendorName: initialData.vendorName || '',
         categoryId: initialData.categoryId || '',
         accountId: initialData.accountId || '',
@@ -1088,34 +1048,20 @@ const UnifiedExpenseEntry = ({
                 <div className="form-group">
                   <label htmlFor="vendor" className="form-label">Vendor</label>
                   {isDepositMode ? (
-                    <>
-                      <select
-                        id="vendor"
-                        value={depositVendorSelection}
-                        onChange={(e) => handleDepositVendorSelectChange(e.target.value)}
-                        className={fieldErrors.vendorId ? 'error' : ''}
-                      >
-                        <option value={DEPOSIT_VENDOR_OPTION}>Deposit</option>
-                        {activeVendors.map((vendor) => (
-                          <option key={vendor.id} value={vendor.id}>
-                            {vendor.name}
-                            {vendor.category && ` (${vendor.category})`}
-                          </option>
-                        ))}
-                        <option value={CUSTOM_VENDOR_OPTION}>{t('tx.modal.depositVendorOther')}</option>
-                      </select>
-                      {showDepositCustomVendorInput() && (
-                        <input
-                          type="text"
-                          id="deposit-custom-vendor"
-                          value={formData.vendorName}
-                          onChange={(e) => handleDepositCustomVendorNameChange(e.target.value)}
-                          className={fieldErrors.vendorId ? 'error' : ''}
-                          placeholder={t('tx.modal.depositVendorCustomPlaceholder')}
-                          style={{ marginTop: '8px' }}
-                        />
-                      )}
-                    </>
+                    <select
+                      id="vendor"
+                      value={getDepositVendorSelectValue()}
+                      onChange={(e) => handleDepositVendorSelectChange(e.target.value)}
+                      className={fieldErrors.vendorId ? 'error' : ''}
+                    >
+                      <option value={DEPOSIT_VENDOR_OPTION}>Deposit</option>
+                      {activeVendors.map((vendor) => (
+                        <option key={vendor.id} value={vendor.id}>
+                          {vendor.name}
+                          {vendor.category && ` (${vendor.category})`}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <select
                       id="vendor"
