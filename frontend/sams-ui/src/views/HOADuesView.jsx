@@ -160,14 +160,13 @@ function HOADuesView() {
         alert(t('hoadues.noMatchingTransaction'));
       }
     } else {
-      // Not paid - only admin can open payment modal; non-admin view-only (navigate without opening)
+      // Not paid - only admin can record payment; non-admin click is intentionally a no-op.
+      // Enhancement candidate (out of scope #332): UPC preview total-due toast on click —
+      // HOADuesView has cell/quarter dues status but not unified payment preview totals.
       const canRecordPayment = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
       if (canRecordPayment) {
         console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
         handleOpenUnifiedPaymentModal(unitId);
-      } else {
-        // View-only: navigate to transactions without opening payment modal
-        navigate('/transactions');
       }
     }
   };
