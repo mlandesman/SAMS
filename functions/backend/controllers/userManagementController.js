@@ -680,79 +680,8 @@ export async function updateUser(req, res) {
       }
     }
 
-    // Users can update their own basic profile
-    if (userId === updatingUser.uid) {
-      // Allow self-update of basic fields only
-      const allowedUpdates = { 
-        name,
-        isActive
-      };
-      
-      // SuperAdmin can update their own global role
-      if (updatingUser.isSuperAdmin() && globalRole) {
-        allowedUpdates.globalRole = globalRole;
-      }
-      
-      await db.collection('users').doc(userId).update({
-        ...allowedUpdates,
-        lastModifiedDate: getNow().toISOString(),
-        lastModifiedBy: updatingUser.email
-      });
-
-      // Handle password reset for self
-      if (resetPassword) {
-        try {
-          const passwordToSet = newPassword || generateSecureTempPassword();
-          await admin.auth().updateUser(userId, {
-            password: passwordToSet,
-            disabled: false
-          });
-          
-          // Also update Firestore profile to ensure user is active
-          const selfProfileUpdate = {
-            isActive: true,
-            lastModifiedDate: getNow().toISOString(),
-            lastModifiedBy: updatingUser.email
-          };
-          
-          // Only require password change if password was auto-generated
-          if (!newPassword) {
-            selfProfileUpdate.accountState = 'pending_password_change';
-            selfProfileUpdate.mustChangePassword = true;
-          } else {
-            selfProfileUpdate.accountState = 'active';
-            selfProfileUpdate.mustChangePassword = false;
-          }
-          
-          await db.collection('users').doc(userId).update(selfProfileUpdate);
-          
-          res.json({
-            success: true,
-            message: 'Profile updated successfully',
-            passwordChanged: true,
-            newPassword: newPassword ? undefined : passwordToSet // Only return if auto-generated
-          });
-          return;
-        } catch (passwordError) {
-          logError('Failed to reset password:', passwordError);
-          res.json({
-            success: true,
-            message: 'Profile updated but password reset failed',
-            passwordError: passwordError.message
-          });
-          return;
-        }
-      }
-
-      res.json({
-        success: true,
-        message: 'Profile updated successfully'
-      });
-      return;
-    }
-
-    // Only SuperAdmin or admins can update other users
-    if (!updatingUser.isSuperAdmin()) {
+    // Only SuperAdmin or admins can update other users (self-update uses unified path below)
+    if (userId !== updatingUser.uid && !updatingUser.isSuperAdmin()) {
       // Check if updating user is admin for any of the target user's clients
       const targetUserClients = Object.keys(currentUserData.propertyAccess || {});
       const hasAdminRights = targetUserClients.some(clientId => {
@@ -809,7 +738,11 @@ export async function updateUser(req, res) {
     }
 
     // Handle canLogin toggle (enable/disable Firebase Auth)
-    if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+    // Normalize legacy undefined canLogin via isFirestoreLoginEligible to avoid spurious Auth ops
+    const currentLoginEligible = isFirestoreLoginEligible(currentUserData);
+    const requestedLoginEligible = canLogin !== undefined ? canLogin : currentLoginEligible;
+
+    if (canLogin !== undefined && requestedLoginEligible !== currentLoginEligible) {
       if (isSystemSchedulerAccount(userId, currentUserData) && canLogin === false) {
         // Firestore-only: show "cannot login" in admin UI. Do NOT disable Firebase Auth —
         // internalApiClient uses createCustomToken + signInWithCustomToken for this UID.
@@ -824,7 +757,20 @@ export async function updateUser(req, res) {
         });
       } else if (canLogin) {
         // Promoting contact to user - enable Auth and send password reset
-        await admin.auth().updateUser(userId, { disabled: false });
+        try {
+          await admin.auth().updateUser(userId, { disabled: false });
+        } catch (authError) {
+          if (authError?.code !== 'auth/user-not-found') {
+            throw authError;
+          }
+          // Auth record missing — create before enabling login
+          await admin.auth().createUser({
+            uid: userId,
+            email: currentUserData.email,
+            emailVerified: false,
+            disabled: false
+          });
+        }
         
         // Generate temporary password and send notification
         const tempPassword = generateSecureTempPassword();
@@ -853,8 +799,15 @@ export async function updateUser(req, res) {
           notes: `Contact promoted to login user by ${updatingUser.email}`
         });
       } else if (!isSystemSchedulerAccount(userId, currentUserData)) {
-        // Demoting user to contact - disable Auth
-        await admin.auth().updateUser(userId, { disabled: true });
+        // Demoting user to contact - disable Auth (skip if no Auth record)
+        try {
+          await admin.auth().updateUser(userId, { disabled: true });
+        } catch (authError) {
+          if (authError?.code !== 'auth/user-not-found') {
+            throw authError;
+          }
+          logDebug(`canLogin demotion skipped Auth disable — no Auth record for ${userId}`);
+        }
         updateData.canLogin = false;
         updateData.accountState = 'contact_only';
         

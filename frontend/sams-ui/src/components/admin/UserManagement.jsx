@@ -85,6 +85,12 @@ const UserManagement = ({
         getSortableName(a).localeCompare(getSortableName(b), undefined, { sensitivity: 'base' })
       );
       setUsers(deduped);
+
+      // Keep selected user in sync with freshly loaded data (View modal reads this shape)
+      setSelectedUser(prev => {
+        if (!prev?.id) return prev;
+        return deduped.find(u => u.id === prev.id) || prev;
+      });
     } catch (err) {
       console.error('Failed to load users:', err);
       setError(err.message || 'Failed to load users');
@@ -1359,6 +1365,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         isActive: formData.isActive,
         globalRole: formData.globalRole,
         canLogin: formData.canLogin,
+        requirePasswordChange: formData.requirePasswordChange,
         profile: formData.profile,
         notifications: formData.notifications
         // Note: propertyAccess is now managed via separate API calls
@@ -1370,11 +1377,6 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         if (newPassword.trim()) {
           updateData.newPassword = newPassword;
         }
-      }
-      
-      // Include require password change if requested
-      if (formData.requirePasswordChange) {
-        updateData.requirePasswordChange = true;
       }
       
       // Update basic user data first
