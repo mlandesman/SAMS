@@ -738,7 +738,11 @@ export async function updateUser(req, res) {
     }
 
     // Handle canLogin toggle (enable/disable Firebase Auth)
-    if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+    // Normalize legacy undefined canLogin via isFirestoreLoginEligible to avoid spurious Auth ops
+    const currentLoginEligible = isFirestoreLoginEligible(currentUserData);
+    const requestedLoginEligible = canLogin !== undefined ? canLogin : currentLoginEligible;
+
+    if (canLogin !== undefined && requestedLoginEligible !== currentLoginEligible) {
       if (isSystemSchedulerAccount(userId, currentUserData) && canLogin === false) {
         // Firestore-only: show "cannot login" in admin UI. Do NOT disable Firebase Auth —
         // internalApiClient uses createCustomToken + signInWithCustomToken for this UID.
@@ -753,7 +757,20 @@ export async function updateUser(req, res) {
         });
       } else if (canLogin) {
         // Promoting contact to user - enable Auth and send password reset
-        await admin.auth().updateUser(userId, { disabled: false });
+        try {
+          await admin.auth().updateUser(userId, { disabled: false });
+        } catch (authError) {
+          if (authError?.code !== 'auth/user-not-found') {
+            throw authError;
+          }
+          // Auth record missing — create before enabling login
+          await admin.auth().createUser({
+            uid: userId,
+            email: currentUserData.email,
+            emailVerified: false,
+            disabled: false
+          });
+        }
         
         // Generate temporary password and send notification
         const tempPassword = generateSecureTempPassword();
@@ -782,8 +799,15 @@ export async function updateUser(req, res) {
           notes: `Contact promoted to login user by ${updatingUser.email}`
         });
       } else if (!isSystemSchedulerAccount(userId, currentUserData)) {
-        // Demoting user to contact - disable Auth
-        await admin.auth().updateUser(userId, { disabled: true });
+        // Demoting user to contact - disable Auth (skip if no Auth record)
+        try {
+          await admin.auth().updateUser(userId, { disabled: true });
+        } catch (authError) {
+          if (authError?.code !== 'auth/user-not-found') {
+            throw authError;
+          }
+          logDebug(`canLogin demotion skipped Auth disable — no Auth record for ${userId}`);
+        }
         updateData.canLogin = false;
         updateData.accountState = 'contact_only';
         

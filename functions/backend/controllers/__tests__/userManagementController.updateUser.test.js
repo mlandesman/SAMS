@@ -162,6 +162,35 @@ describe('updateUser profile persistence', () => {
     );
   });
 
+  test('self-update with canLogin true and legacy undefined canLogin skips Auth promotion', async () => {
+    mockDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        ...BASE_USER_DOC,
+        canLogin: undefined
+      })
+    });
+
+    const userId = 'self-user-123';
+    const { req, res } = buildReqRes({
+      userId,
+      uid: userId,
+      body: {
+        name: 'Jane Admin Updated',
+        canLogin: true,
+        profile: EDITABLE_PROFILE
+      }
+    });
+
+    await updateUser(req, res);
+
+    expect(mockAuthUpdateUser).not.toHaveBeenCalled();
+    expect(mockDocUpdate).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
+    );
+  });
+
   test('non-admin cannot update another user', async () => {
     const { req, res } = buildReqRes({
       userId: 'other-user-456',
