@@ -60,6 +60,20 @@ function resolveDepositVendor(formData, clientData) {
 
 const DEPOSIT_VENDOR_OPTION = 'deposit';
 
+function createDefaultFormData() {
+  return {
+    date: getMexicoDateString(),
+    amount: '',
+    categoryId: '',
+    vendorId: '',
+    vendorName: '',
+    notes: '',
+    accountId: '',
+    paymentMethodId: '',
+    unitId: '',
+  };
+}
+
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
   isOpen = true,
@@ -81,17 +95,7 @@ const UnifiedExpenseEntry = ({
   const userEmail = samsUser?.email || currentUser?.email || 'unknown-user';
 
   // Form state - ID-first architecture: stores IDs instead of names
-  const [formData, setFormData] = useState({
-    date: getMexicoDateString(), // Use Mexico timezone for consistent date
-    amount: '',
-    categoryId: '', // Stores category ID
-    vendorId: '',   // Stores vendor ID (empty = synthetic Deposit in deposit mode)
-    vendorName: '',
-    notes: '',
-    accountId: '',     // Stores account ID
-    paymentMethodId: '', // Stores payment method ID
-    unitId: '',     // Stores unit ID (optional)
-  });
+  const [formData, setFormData] = useState(createDefaultFormData);
 
   const [clientData, setClientData] = useState({
     categories: [],
@@ -404,8 +408,10 @@ const UnifiedExpenseEntry = ({
           const sole = splitAllocations[0];
           transactionData.categoryId = sole.categoryId || clientData.categories.find(c => c.name === sole.categoryName)?.id || formData.categoryId;
           transactionData.categoryName = sole.categoryName || selectedCategory?.name || '';
-          // Amount in pesos - allocation.amount is centavos
-          transactionData.amount = databaseFieldMappings.centsToDollars(sole.amount || 0);
+          const soleAmountPesos = Math.abs(databaseFieldMappings.centsToDollars(sole.amount || 0));
+          transactionData.amount = effectiveTransactionType === 'income'
+            ? soleAmountPesos
+            : -soleAmountPesos;
           // Explicitly clear allocations so backend removes split designation
           transactionData.allocations = [];
         } else if (addBankFees && !isDepositMode) {
@@ -870,8 +876,14 @@ const UnifiedExpenseEntry = ({
         setExistingDocuments([]);
       }
     } else {
-      // Clear existing documents when not editing
+      // New transaction (including add after edit while modal stays open)
       setExistingDocuments([]);
+      setTransactionType('expense');
+      setSplitAllocations([]);
+      setAddBankFees(false);
+      setShowSplitModal(false);
+      setFormData(createDefaultFormData());
+      setFieldErrors({});
     }
   }, [initialData, clientId]);
 
@@ -1425,8 +1437,10 @@ const UnifiedExpenseEntry = ({
           date: formData.date,
           vendorId: formData.vendorId,
           vendorName: clientData.vendors.find(v => v.id === formData.vendorId)?.name || '',
-          // Convert to cents and make negative for expenses (expenses are always negative)
-          amount: -Math.abs(databaseFieldMappings.dollarsToCents(formData.amount || 0)),
+          amount: (() => {
+            const magnitude = Math.abs(databaseFieldMappings.dollarsToCents(formData.amount || 0));
+            return isDepositMode ? magnitude : -magnitude;
+          })(),
           accountId: formData.accountId,
           accountType: clientData.accounts.find(a => a.id === formData.accountId)?.name || '',
           paymentMethodId: formData.paymentMethodId,
