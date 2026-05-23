@@ -56,6 +56,29 @@ function getDepositVendorDefaults(vendors) {
   };
 }
 
+function resolveSubmitVendor(formData, initialData, clientData, isDepositMode) {
+  const vendorId = formData.vendorId || initialData?.vendorId;
+  const matchedVendor = vendorId
+    ? clientData.vendors.find((v) => v.id === vendorId)
+    : null;
+
+  if (vendorId) {
+    return {
+      vendorId,
+      vendorName: matchedVendor?.name || initialData?.vendorName || formData.vendorName || '',
+    };
+  }
+
+  if (isDepositMode) {
+    return getDepositVendorDefaults(clientData.vendors);
+  }
+
+  return {
+    vendorId: '',
+    vendorName: formData.vendorName || initialData?.vendorName || '',
+  };
+}
+
 function createDefaultFormData() {
   return {
     date: getMexicoDateString(),
@@ -300,11 +323,8 @@ const UnifiedExpenseEntry = ({
       // Use the onSubmit callback if provided (modal mode)
       if (onSubmit) {
         // ID-first architecture: send IDs as primary values, include names for success modal
-        const selectedVendor = clientData.vendors.find(v => v.id === formData.vendorId);
         const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
         const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
-        
-        // Preserve transaction type when editing adjustments; otherwise use explicit toggle
         const effectiveTransactionType = initialData?.type === 'adjustment'
           ? 'adjustment'
           : transactionType;
@@ -324,10 +344,7 @@ const UnifiedExpenseEntry = ({
           transactionAmount = -Math.abs(parseFloat(formData.amount)); // Negative for expenses
         }
 
-        const resolvedVendor = {
-          vendorId: formData.vendorId || initialData?.vendorId,
-          vendorName: selectedVendor?.name || initialData?.vendorName || formData.vendorName || '',
-        };
+        const resolvedVendor = resolveSubmitVendor(formData, initialData, clientData, isDepositMode);
         
         // When editing, preserve original transaction fields that might not be in form
         const transactionData = {
@@ -490,10 +507,7 @@ const UnifiedExpenseEntry = ({
         let transactionNotes = formData.notes;
         let transactionCategoryId = formData.categoryId;
         let transactionAllocations = null;
-        const directApiVendor = {
-          vendorId: formData.vendorId,
-          vendorName: clientData.vendors.find((v) => v.id === formData.vendorId)?.name || formData.vendorName || '',
-        };
+        const directApiVendor = resolveSubmitVendor(formData, initialData, clientData, directApiType === 'income');
         
         // Handle bank fees if checkbox is checked
         if (addBankFees && directApiType === 'expense') {
