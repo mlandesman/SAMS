@@ -63,6 +63,9 @@ function resolveDepositVendor(formData, clientData) {
   return { vendorId: null, vendorName: displayText };
 }
 
+const DEPOSIT_VENDOR_OPTION = 'deposit';
+const CUSTOM_VENDOR_OPTION = '__custom__';
+
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
   isOpen = true,
@@ -122,20 +125,58 @@ const UnifiedExpenseEntry = ({
   // Bank fees checkbox — default from selected account's addBankFees config
   const [addBankFees, setAddBankFees] = useState(false);
   const [transactionType, setTransactionType] = useState('expense');
+  const [depositVendorSelection, setDepositVendorSelection] = useState(DEPOSIT_VENDOR_OPTION);
   const isClearedTransaction = Boolean(initialData?.clearedDate);
   const isDepositMode = transactionType === 'income';
   const activeVendors = clientData.vendors.filter(
     (vendor) => vendor.status !== 'inactive' || vendor.id === formData.vendorId
   );
 
-  const getDepositVendorInputValue = () => {
-    if (formData.vendorName) {
-      return formData.vendorName;
+  const showDepositCustomVendorInput = () => depositVendorSelection === CUSTOM_VENDOR_OPTION;
+
+  const getEntryTitle = () => {
+    if (initialData) {
+      return isDepositMode ? t('tx.modal.editDeposit') : t('tx.modal.editExpense');
     }
-    if (formData.vendorId) {
-      return clientData.vendors.find((v) => v.id === formData.vendorId)?.name || '';
+    return isDepositMode ? t('tx.modal.addDeposit') : t('tx.modal.addExpense');
+  };
+
+  const getSubmitButtonLabel = () => {
+    if (submitting) {
+      return initialData ? t('tx.modal.updating') : t('tx.modal.submitting');
     }
-    return '';
+    if (initialData) {
+      return isDepositMode ? t('tx.modal.updateDeposit') : t('tx.modal.updateExpense');
+    }
+    return isDepositMode ? t('tx.modal.submitDeposit') : t('tx.modal.submitExpense');
+  };
+
+  const handleDepositVendorSelectChange = (selectedValue) => {
+    setDepositVendorSelection(selectedValue);
+
+    if (selectedValue === DEPOSIT_VENDOR_OPTION) {
+      setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
+    } else if (selectedValue === CUSTOM_VENDOR_OPTION) {
+      setFormData((prev) => ({ ...prev, vendorId: '', vendorName: '' }));
+    } else {
+      handleVendorChange(selectedValue);
+    }
+
+    if (fieldErrors.vendorId) {
+      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
+    }
+  };
+
+  const handleDepositCustomVendorNameChange = (customName) => {
+    setFormData((prev) => ({
+      ...prev,
+      vendorId: '',
+      vendorName: customName,
+    }));
+
+    if (fieldErrors.vendorId) {
+      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
+    }
   };
 
   // Confirmation modal state - removed, now handled by parent component
@@ -225,6 +266,19 @@ const UnifiedExpenseEntry = ({
     }
   };
 
+  const syncDepositVendorSelection = (vendorId, vendorName) => {
+    if (vendorId && vendorId !== 'deposit') {
+      setDepositVendorSelection(vendorId);
+      return;
+    }
+    const name = (vendorName || '').trim();
+    if (!name || name.toLowerCase() === 'deposit') {
+      setDepositVendorSelection(DEPOSIT_VENDOR_OPTION);
+      return;
+    }
+    setDepositVendorSelection(CUSTOM_VENDOR_OPTION);
+  };
+
   const handleTransactionTypeChange = (nextType) => {
     if (nextType === transactionType) {
       return;
@@ -232,38 +286,16 @@ const UnifiedExpenseEntry = ({
 
     if (nextType === 'income') {
       setAddBankFees(false);
-      setFormData((prev) => {
-        const hasVendorValue = Boolean(prev.vendorId || prev.vendorName?.trim());
-        if (hasVendorValue) {
-          return prev;
-        }
-        return { ...prev, vendorId: '', vendorName: 'Deposit' };
-      });
+      const hasVendorValue = Boolean(formData.vendorId || formData.vendorName?.trim());
+      if (hasVendorValue) {
+        syncDepositVendorSelection(formData.vendorId, formData.vendorName);
+      } else {
+        setDepositVendorSelection(DEPOSIT_VENDOR_OPTION);
+        setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
+      }
     }
 
     setTransactionType(nextType);
-  };
-
-  const handleDepositVendorInputChange = (inputValue) => {
-    const matchedVendor = activeVendors.find(
-      (vendor) => vendor.name.toLowerCase() === inputValue.trim().toLowerCase()
-    );
-
-    if (matchedVendor) {
-      handleVendorChange(matchedVendor.id);
-      setFormData((prev) => ({ ...prev, vendorName: matchedVendor.name }));
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      vendorId: '',
-      vendorName: inputValue,
-    }));
-
-    if (fieldErrors.vendorId) {
-      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
-    }
   };
 
   // Check if Split button should be enabled (exclude category requirement for splits)
@@ -367,7 +399,7 @@ const UnifiedExpenseEntry = ({
           accountType: selectedAccountData?.type || initialData?.accountType || 'bank', // Account metadata
           paymentMethodId: formData.paymentMethodId || initialData?.paymentMethodId, // PRIMARY: payment method ID
           paymentMethod: selectedPaymentMethod?.name || initialData?.paymentMethod || '', // For success modal display
-          unitId: formData.unitId || initialData?.unitId || null, // PRIMARY: unit ID
+          unitId: formData.unitId ? formData.unitId : null, // Empty selection clears unit on edit
           type: effectiveTransactionType,
           clientId: clientId,
           enteredBy: userEmail,
@@ -771,6 +803,7 @@ const UnifiedExpenseEntry = ({
       } else if (initialData.type !== 'adjustment') {
         setTransactionType('expense');
       }
+      syncDepositVendorSelection(initialData.vendorId, initialData.vendorName);
       setFormData(prev => ({
         ...prev,
         date: initialData.date || prev.date,
@@ -900,7 +933,7 @@ const UnifiedExpenseEntry = ({
                 </button>
               )}
               <div className="header-text">
-                <h2 className="entry-title">{initialData ? 'Edit Expense' : 'Add Expense'}</h2>
+                <h2 className="entry-title">{getEntryTitle()}</h2>
               </div>
               {mode === 'modal' && (
                 <button className="close-button" onClick={handleCancel}>
@@ -938,7 +971,7 @@ const UnifiedExpenseEntry = ({
               </h2>
             ) : (
               <>
-                <h2 className="entry-title">{initialData ? 'Edit Expense' : 'Add Expense'}</h2>
+                <h2 className="entry-title">{getEntryTitle()}</h2>
                 <div className="client-name">{clientName}</div>
               </>
             )}
@@ -1056,20 +1089,32 @@ const UnifiedExpenseEntry = ({
                   <label htmlFor="vendor" className="form-label">Vendor</label>
                   {isDepositMode ? (
                     <>
-                      <input
-                        type="text"
+                      <select
                         id="vendor"
-                        list="deposit-vendor-options"
-                        value={getDepositVendorInputValue()}
-                        onChange={(e) => handleDepositVendorInputChange(e.target.value)}
+                        value={depositVendorSelection}
+                        onChange={(e) => handleDepositVendorSelectChange(e.target.value)}
                         className={fieldErrors.vendorId ? 'error' : ''}
-                        placeholder="Deposit"
-                      />
-                      <datalist id="deposit-vendor-options">
+                      >
+                        <option value={DEPOSIT_VENDOR_OPTION}>Deposit</option>
                         {activeVendors.map((vendor) => (
-                          <option key={vendor.id} value={vendor.name} />
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendor.name}
+                            {vendor.category && ` (${vendor.category})`}
+                          </option>
                         ))}
-                      </datalist>
+                        <option value={CUSTOM_VENDOR_OPTION}>{t('tx.modal.depositVendorOther')}</option>
+                      </select>
+                      {showDepositCustomVendorInput() && (
+                        <input
+                          type="text"
+                          id="deposit-custom-vendor"
+                          value={formData.vendorName}
+                          onChange={(e) => handleDepositCustomVendorNameChange(e.target.value)}
+                          className={fieldErrors.vendorId ? 'error' : ''}
+                          placeholder={t('tx.modal.depositVendorCustomPlaceholder')}
+                          style={{ marginTop: '8px' }}
+                        />
+                      )}
                     </>
                   ) : (
                     <select
@@ -1195,16 +1240,19 @@ const UnifiedExpenseEntry = ({
                   </select>
                   {fieldErrors.account && <span className="field-error">{fieldErrors.account}</span>}
                   
-                  {/* Bank Fees Checkbox — default from account addBankFees config */}
-                  {!isDepositMode && (
-                  <div className="bank-fees-checkbox" style={{ marginTop: '8px' }}>
+                  {/* Bank Fees Checkbox — hidden in Deposit mode but space reserved for consistent modal height */}
+                  <div
+                    className={`bank-fees-checkbox ${isDepositMode ? 'bank-fees-checkbox-hidden' : ''}`}
+                    aria-hidden={isDepositMode}
+                  >
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={addBankFees}
                         onChange={(e) => setAddBankFees(e.target.checked)}
-                        disabled={isClearedTransaction}
+                        disabled={isClearedTransaction || isDepositMode}
                         style={{ cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}
+                        tabIndex={isDepositMode ? -1 : 0}
                       />
                       <span>Add Bank Fees (+$5.80)</span>
                     </label>
@@ -1214,7 +1262,6 @@ const UnifiedExpenseEntry = ({
                       </div>
                     )}
                   </div>
-                  )}
                 </div>
               </div>
 
@@ -1400,10 +1447,10 @@ const UnifiedExpenseEntry = ({
                   {submitting ? (
                     <>
                       <span className="loading-spinner small"></span>
-                      {initialData ? 'Updating...' : 'Submitting...'}
+                      {initialData ? t('tx.modal.updating') : t('tx.modal.submitting')}
                     </>
                   ) : (
-                    initialData ? 'Update Expense' : 'Submit Expense'
+                    getSubmitButtonLabel()
                   )}
                 </button>
               </div>
