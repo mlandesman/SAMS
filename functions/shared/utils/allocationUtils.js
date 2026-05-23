@@ -110,3 +110,14 @@ export function allocateByOwnership(totalCentavos, ownershipMap, participationMa
     }
   };
 }
+
+/**
+ * Sort transaction allocations so the primary (largest absolute amount) is first.
+ * Stable sort preserves insertion order for equal absolute values.
+ *
+ * @param {Array<{ amount?: number|null }>} allocations
+ * @returns {Array<{ amount?: number|null }>}
+ */
+export function sortAllocationsByPrimary(allocations) {
+  return [...allocations].sort((a, b) => Math.abs(b.amount ?? 0) - Math.abs(a.amount ?? 0));
+}
