@@ -1365,6 +1365,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         isActive: formData.isActive,
         globalRole: formData.globalRole,
         canLogin: formData.canLogin,
+        requirePasswordChange: formData.requirePasswordChange,
         profile: formData.profile,
         notifications: formData.notifications
         // Note: propertyAccess is now managed via separate API calls
@@ -1376,11 +1377,6 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         if (newPassword.trim()) {
           updateData.newPassword = newPassword;
         }
-      }
-      
-      // Include require password change if requested
-      if (formData.requirePasswordChange) {
-        updateData.requirePasswordChange = true;
       }
       
       // Update basic user data first
