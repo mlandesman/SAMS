@@ -10,6 +10,7 @@
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)
+- ✅ GH #332 desktop deposit workflow (Expense/Deposit toggle, HOA local payment modal) — complete May 2026; PR #345 merge pending
 - ✅ HOA Dues collection with UPC payment allocation
 - ✅ Statement of Account (PDF, CSV, Email)
 - ✅ Water Bills with quarterly billing (AVII) — Full UI Complete
@@ -93,6 +94,14 @@
 **Schedule Note (May 4, 2026 — Cleanup sweep closeout):** PR #326 merged to `main` after BugBot review/remediation. Closed issues: #79, #303, #305, #309, #310. Deferred intentionally: #306 (reconciliation reopen workflow) for separate planning due to broader state-model implications. Next sprint target remains **UC-LITE**.
 
 **Schedule Note (May 6, 2026 — Reconciliation follow-up closeout):** PR #330 merged to `main` with reconciliation reopen/resume workflow completion and reconciliation health follow-up fixes (including timezone and legacy `clearedDate` handling hardening). Issue **#306** is now closed.
+
+**Schedule Note (May 22, 2026 — Stabilization Bundle cluster `#337` + `#223` closeout):** PR [#341](https://github.com/mlandesman/SAMS/pull/341) squash-merged to `main` (28 commits squashed into commit `58c3e63`). Delivered persisted bilingual credit-history client messaging (`userMessage` + `userMessage_es`) following the project's transactions `notes`/`notes_es` + ProjectFormModal Translate-button + DeepL fallback pattern, plus full Sandyland modal standardization on the live credit-balance modals and decimal-text amount inputs. AVII prod data backfilled (90 entries via `backfillCreditUserMessageEs.js`); MTC prod backfill remains optional. Filed `#340` (dead-mounted credit modal cleanup) for a future DEBT sprint. New canonical desktop date helper `frontend/sams-ui/src/utils/dateUtils.js` introduced. Remaining stabilization-bundle issues (`#338`, `#329`, `#12`, `#307`) continue under the active APM session as the next clusters; the Stabilization Bundle is a sprint-of-clusters rather than a single named sprint in this document.
+
+**Schedule Note (May 22, 2026 — Stabilization Bundle cluster `#329` closeout):** PR [#342](https://github.com/mlandesman/SAMS/pull/342) squash-merged to `main` (single commit `3263eed` → squash commit `966785d`). Removed `clientId === 'AVII'` hardcoded branching from Add Expense bank-fee checkbox default in `UnifiedExpenseEntry.jsx`; default now reads `addBankFees` from the selected account in `accounts[]` (strict `=== true` check; missing/null/false → unchecked) and re-evaluates immediately via `useEffect` keyed on `formData.accountId` + `rawAccountData` when the user changes account mid-modal. BugBot SUCCESS, User in-session verified on AVII. Two doc-maintenance items surfaced (not blocking): `ACTIVE_MODULES.md` lists legacy `ExpenseModal.jsx` while the live path is `UnifiedExpenseEntry.jsx`; `test-results/` is gitignored so fixture files (`AVII.json`/`MTC.json`) weren't directly accessible to the Worker — they pivoted to `client-config.json` + live API which is the runtime source of truth anyway. Remaining stabilization-bundle clusters: `#338`+`#307`, `#12`.
+
+**Schedule Note (May 22, 2026 — Stabilization Bundle cluster `#338` + `#307` closeout):** PR [#343](https://github.com/mlandesman/SAMS/pull/343) squash-merged to `main` (4 commits squashed into `c922bf4`). Backend `updateUser` self-vs-other field-omission branch removed (full editable profile set now persists uniformly on every call; route-level auth gates untouched; 3/3 unit tests); frontend User View modal fresh-fetches on open; SuperAdmin dashboard suppresses unit-owner Unit Account Status card while preserving for `unitOwner` / `unitManager`. Scope-adjacent: `canLogin` normalization before Firebase Auth side effects + Edit modal WYSIWYS always-sends `requirePasswordChange`. BugBot 2 Medium findings adjudicated by-design by User (admin `users.manage` authority over policy fields including self-record; modal checkbox-display-is-source-of-truth invariant). **All 4 Stabilization Bundle clusters now closed**; 5 pending changelog entries ready for next versioned deploy.
+
+**Schedule Note (May 22, 2026 — Stabilization Bundle cluster `#12` closed as already-implemented):** Issue `#12` closed without code change. Current desktop behavior (verified via User screenshot 2026-05-22) already surfaces a clean non-blocking yellow toast on the failure path — clicking a paid HOA Dues cell whose stored `transactionId` reference points to a missing transaction shows "Transaction not found. It may have been deleted." on TransactionView, with the page underneath remaining interactive. The original raw-error behavior referenced in this 300-issue-old bug was replaced sometime between then and now by unrelated UI polish work (likely Sprint EM error capture or BUG-SWEEP merges). The underlying data-corruption case is no longer organically reachable post hardening, and the failure-path UX is adequate per the sprint Spec contract. APM Task 2.4 marked Done as "already-implemented" without Worker dispatch execution. No PR, no commits, no changelog entry. Manager Review at `.apm/memory/stage-02/cluster-12-review.md`. Last remaining stabilization-bundle cluster: `#338`+`#307`.
 
 **Schedule Note (Apr 13, 2026 — PROD-STAB closed):** PR #302 merged for issue `#266` (canonical `canLogin` login-eligibility contract and cleanup of legacy `loginEnabled` handling). This closes PROD-STABILIZATION-1.
 
@@ -182,6 +191,10 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| Stabilization Bundle cluster `#338` + `#307` | May 22, 2026 | `#338` + `#307` complete (PR #343 squash-merged as `c922bf4`): backend `updateUser` self-update silent-drop branch removed (full profile persists uniformly with 3/3 unit tests + intact auth gates); frontend View modal fresh-fetch; SuperAdmin dashboard suppresses owner-facing Unit Account Status card while preserving for unitOwner / unitManager. Scope-adjacent: `canLogin` normalization + Edit modal WYSIWYS `requirePasswordChange`. BugBot 2 Medium findings adjudicated by-design by User. Cluster 4 of 4 in the active APM stabilization sprint — **bundle now fully closed**. |
+| Stabilization Bundle cluster `#12` | May 22, 2026 | `#12` closed as **already-implemented** (no PR, no code change): current desktop UI already surfaces a clean non-blocking toast ("Transaction not found. It may have been deleted.") on the failure path. Original raw-error behavior was replaced by unrelated UI polish work between issue filing and this sprint. Cluster 3 of 4 in the active APM stabilization sprint. |
+| Stabilization Bundle cluster `#329` | May 22, 2026 | `#329` complete (PR #342 squash-merged): Add Expense bank-fee checkbox default now driven by selected account's `addBankFees` config instead of `clientId` hardcoding; re-evaluates immediately on account change. Cluster 2 of 4 in the active APM stabilization sprint. |
+| Stabilization Bundle cluster `#337` + `#223` | May 22, 2026 | `#337` + `#223` complete (PR #341 squash-merged): bilingual credit `userMessage`/`userMessage_es` with DeepL Translate button + AVII prod backfill, Sandyland credit-modal CSS standardization with decimal-text amount inputs. Tech debt `#340` filed for dead-modal cleanup. Cluster 1 of 4 in the active APM stabilization sprint. |
 | LOCALIZATION-DESKTOP-NONADMIN | Apr 27, 2026 | #316 complete (PR #320 merged): desktop non-admin localization parity closed with #318 deferred and #319 carry-forward governance |
 | ISSUE-315 localization closeout | Apr 25, 2026 | #315 complete (PR #317 merged): persisted `notes_es` read/write contract finalized, runtime transaction DeepL reads removed, strict backfill behavior enforced |
 | BACKEND-LOCALIZATION | Apr 24, 2026 | APM Task 2.1–2.7 complete (contract, rollout guard, endpoint parity, persisted category propagation, transactions parity + polish) |
@@ -243,7 +256,15 @@
 
 ---
 
-*Last Updated: May 6, 2026 — Recorded PR #330 reconciliation follow-up merge, marked issue #306 closed, and updated current-focus/sprint-sequence notes to reflect post-cleanup closeout state.*
+*Last Updated: May 22, 2026 — Recorded Stabilization Bundle cluster `#338`+`#307` closeout (PR #343 squash-merged). **All 4 Stabilization Bundle clusters now closed**; sprint moves into Stage 3 evidence/packaging Tasks under the active APM session.*
+
+*Previous Update: May 22, 2026 — Recorded Stabilization Bundle cluster `#12` closure as already-implemented (no code change). Last remaining cluster: `#338`+`#307` (user-update + dashboard).*
+
+*Previous Update: May 22, 2026 — Recorded Stabilization Bundle cluster `#329` closeout (PR #342 squash-merged); added Schedule Note and Sprint Completion Log entry. Remaining clusters in the active APM stabilization sprint: `#338`+`#307`, `#12`.*
+
+*Previous Update: May 22, 2026 — Recorded Stabilization Bundle cluster `#337` + `#223` closeout (PR #341 squash-merged); added Schedule Note and Sprint Completion Log entry. Remaining clusters in the active APM stabilization sprint: `#338`+`#307`, `#329`, `#12`.*
+
+*Previous Update: May 6, 2026 — Recorded PR #330 reconciliation follow-up merge, marked issue #306 closed, and updated current-focus/sprint-sequence notes to reflect post-cleanup closeout state.*
 
 *Previous Update: April 25, 2026 — Added #315 merge closeout (PR #317) with deploy-before-backfill sequencing note, and appended Sprint Completion Log entry for persisted transaction notes localization finalization.*
 

@@ -1,6 +1,54 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "337"
+          ],
+          "text": "Persisted bilingual credit-history client message (userMessage + userMessage_es) with deterministic mapping module and DeepL Translate button in admin modals"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "223"
+          ],
+          "text": "Standardized credit-balance modals to Sandyland theme with shared CSS; replaced number-spinner amount inputs with decimal text inputs"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "329"
+          ],
+          "text": "Add Expense bank-fee checkbox defaults from selected account addBankFees instead of clientId hardcoding; re-evaluates immediately on account change"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "338"
+          ],
+          "text": "Backend updateUser persists full editable profile set on self-update (removed silent-drop branch); View modal fresh-fetches user on open to reflect saved changes"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "307"
+          ],
+          "text": "SuperAdmin dashboard no longer renders the unit-owner Unit Account Status card; preserved for unitOwner and unitManager roles"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "332"
+          ],
+          "text": "Desktop deposit workflow: Expense/Deposit toggle in UnifiedExpenseEntry, local HOA payment modal, Transactions ActionBar cleanup (PR #345)"
+        }
+      ]
+    },
+    {
       "version": "2.0.2",
       "date": "2026-05-20",
       "changes": [
