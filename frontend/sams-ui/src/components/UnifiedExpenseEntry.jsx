@@ -15,6 +15,7 @@ import { DocumentUploader } from './documents';
 import { getTransactionDocuments } from '../api/documents';
 import { getMexicoDateString } from '../utils/timezone';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './UnifiedExpenseEntry.css';
 
 /**
@@ -45,6 +46,23 @@ function getAccountDefaultBankFees(rawAccounts, accountId) {
   return account.addBankFees === true;
 }
 
+function resolveDepositVendor(formData, clientData) {
+  const matchedVendor = formData.vendorId
+    ? clientData.vendors.find((v) => v.id === formData.vendorId)
+    : null;
+  const displayText = (formData.vendorName || matchedVendor?.name || '').trim();
+
+  if (!displayText || displayText.toLowerCase() === 'deposit') {
+    return { vendorId: 'deposit', vendorName: 'Deposit' };
+  }
+
+  if (formData.vendorId && matchedVendor) {
+    return { vendorId: formData.vendorId, vendorName: matchedVendor.name };
+  }
+
+  return { vendorId: null, vendorName: displayText };
+}
+
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
   isOpen = true,
@@ -55,6 +73,7 @@ const UnifiedExpenseEntry = ({
   samsUser = null
 }) => {
   const { selectedClient } = useClient();
+  const { t } = useDesktopStrings();
   
   // Determine the client to use
   const clientId = propClientId || selectedClient?.id;
@@ -69,7 +88,8 @@ const UnifiedExpenseEntry = ({
     date: getMexicoDateString(), // Use Mexico timezone for consistent date
     amount: '',
     categoryId: '', // Stores category ID
-    vendorId: '',   // Stores vendor ID  
+    vendorId: '',   // Stores vendor ID
+    vendorName: '', // Free-text vendor name (deposit mode)
     notes: '',
     accountId: '',     // Stores account ID
     paymentMethodId: '', // Stores payment method ID
@@ -101,7 +121,22 @@ const UnifiedExpenseEntry = ({
   
   // Bank fees checkbox — default from selected account's addBankFees config
   const [addBankFees, setAddBankFees] = useState(false);
+  const [transactionType, setTransactionType] = useState('expense');
   const isClearedTransaction = Boolean(initialData?.clearedDate);
+  const isDepositMode = transactionType === 'income';
+  const activeVendors = clientData.vendors.filter(
+    (vendor) => vendor.status !== 'inactive' || vendor.id === formData.vendorId
+  );
+
+  const getDepositVendorInputValue = () => {
+    if (formData.vendorName) {
+      return formData.vendorName;
+    }
+    if (formData.vendorId) {
+      return clientData.vendors.find((v) => v.id === formData.vendorId)?.name || '';
+    }
+    return '';
+  };
 
   // Confirmation modal state - removed, now handled by parent component
 
@@ -137,7 +172,7 @@ const UnifiedExpenseEntry = ({
       errors.categoryId = 'Category is required';
     }
     
-    if (!formData.vendorId) {
+    if (!isDepositMode && !formData.vendorId) {
       errors.vendorId = 'Vendor is required';
     }
     
@@ -159,15 +194,17 @@ const UnifiedExpenseEntry = ({
 
   // Handle vendor change - auto-populate category if vendor has default (Issue #135)
   const handleVendorChange = (vendorId) => {
-    setFormData(prev => ({ ...prev, vendorId }));
+    const selectedVendor = clientData.vendors.find(v => v.id === vendorId);
+    setFormData(prev => ({
+      ...prev,
+      vendorId,
+      vendorName: selectedVendor?.name || '',
+    }));
     
     // Clear vendor field error
     if (fieldErrors.vendorId) {
       setFieldErrors(prev => ({ ...prev, vendorId: null }));
     }
-    
-    // Find the selected vendor
-    const selectedVendor = clientData.vendors.find(v => v.id === vendorId);
     
     if (selectedVendor?.category) {
       // Find the category ID matching vendor's default category
@@ -181,9 +218,51 @@ const UnifiedExpenseEntry = ({
         setFormData(prev => ({ 
           ...prev, 
           vendorId,
+          vendorName: selectedVendor?.name || '',
           categoryId: matchingCategory.id 
         }));
       }
+    }
+  };
+
+  const handleTransactionTypeChange = (nextType) => {
+    if (nextType === transactionType) {
+      return;
+    }
+
+    if (nextType === 'income') {
+      setAddBankFees(false);
+      setFormData((prev) => {
+        const hasVendorValue = Boolean(prev.vendorId || prev.vendorName?.trim());
+        if (hasVendorValue) {
+          return prev;
+        }
+        return { ...prev, vendorId: '', vendorName: 'Deposit' };
+      });
+    }
+
+    setTransactionType(nextType);
+  };
+
+  const handleDepositVendorInputChange = (inputValue) => {
+    const matchedVendor = activeVendors.find(
+      (vendor) => vendor.name.toLowerCase() === inputValue.trim().toLowerCase()
+    );
+
+    if (matchedVendor) {
+      handleVendorChange(matchedVendor.id);
+      setFormData((prev) => ({ ...prev, vendorName: matchedVendor.name }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      vendorId: '',
+      vendorName: inputValue,
+    }));
+
+    if (fieldErrors.vendorId) {
+      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
     }
   };
 
@@ -249,16 +328,17 @@ const UnifiedExpenseEntry = ({
         const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
         const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
         
-        // Preserve transaction type when editing (income for deposits, expense for expenses, adjustment for reconciliation)
-        // Default to 'expense' for new transactions
-        const transactionType = initialData?.type || 'expense';
+        // Preserve transaction type when editing adjustments; otherwise use explicit toggle
+        const effectiveTransactionType = initialData?.type === 'adjustment'
+          ? 'adjustment'
+          : transactionType;
         
         // Handle amount sign based on transaction type
         // Expenses are negative, income (deposits) are positive, adjustments preserve their original sign
         let transactionAmount;
-        if (transactionType === 'income') {
+        if (effectiveTransactionType === 'income') {
           transactionAmount = Math.abs(parseFloat(formData.amount)); // Positive for income
-        } else if (transactionType === 'adjustment') {
+        } else if (effectiveTransactionType === 'adjustment') {
           // Adjustments (from reconciliation) can be positive or negative - preserve original sign
           // Use originalAmount (with sign preserved) if available, otherwise use amount
           const originalValue = initialData?.originalAmount ?? initialData?.amount ?? 0;
@@ -267,13 +347,20 @@ const UnifiedExpenseEntry = ({
         } else {
           transactionAmount = -Math.abs(parseFloat(formData.amount)); // Negative for expenses
         }
+
+        const resolvedVendor = isDepositMode
+          ? resolveDepositVendor(formData, clientData)
+          : {
+              vendorId: formData.vendorId || initialData?.vendorId,
+              vendorName: selectedVendor?.name || initialData?.vendorName || '',
+            };
         
         // When editing, preserve original transaction fields that might not be in form
         const transactionData = {
           date: formData.date, // Send date as string, let backend handle timezone conversion
           amount: transactionAmount, // Sign depends on transaction type
-          vendorId: formData.vendorId || initialData?.vendorId || 'deposit', // PRIMARY: vendor ID (preserve 'deposit' for income transactions)
-          vendorName: selectedVendor?.name || initialData?.vendorName || 'Deposit', // For success modal display
+          vendorId: resolvedVendor.vendorId,
+          vendorName: resolvedVendor.vendorName,
           notes: formData.notes,
           accountId: formData.accountId || initialData?.accountId, // PRIMARY: account ID
           accountName: selectedAccountData?.name || initialData?.accountName || '', // For success modal display
@@ -281,7 +368,7 @@ const UnifiedExpenseEntry = ({
           paymentMethodId: formData.paymentMethodId || initialData?.paymentMethodId, // PRIMARY: payment method ID
           paymentMethod: selectedPaymentMethod?.name || initialData?.paymentMethod || '', // For success modal display
           unitId: formData.unitId || initialData?.unitId || null, // PRIMARY: unit ID
-          type: transactionType, // Preserve type when editing
+          type: effectiveTransactionType,
           clientId: clientId,
           enteredBy: userEmail,
         };
@@ -308,7 +395,7 @@ const UnifiedExpenseEntry = ({
 
           // Issue #271: On edit, fee+IVA rows are already in splitAllocations; do not append again or adjust amount twice.
           const bankFeesAlreadyInSplit = splitAllocationsAlreadyIncludeBankFees(splitAllocations);
-          if (addBankFees && !bankFeesAlreadyInSplit) {
+          if (addBankFees && !isDepositMode && !bankFeesAlreadyInSplit) {
             const commissionAmountDollars = 5.00;
             const ivaAmountDollars = 0.80;
             apiAllocations.push(
@@ -328,7 +415,7 @@ const UnifiedExpenseEntry = ({
           transactionData.amount = databaseFieldMappings.centsToDollars(sole.amount || 0);
           // Explicitly clear allocations so backend removes split designation
           transactionData.allocations = [];
-        } else if (addBankFees) {
+        } else if (addBankFees && !isDepositMode) {
           // Auto-create split allocations for bank fees
           // CRITICAL: Convert dollar amounts to centavos (integers)
           const originalAmountDollars = parseFloat(formData.amount);
@@ -420,13 +507,19 @@ const UnifiedExpenseEntry = ({
 
         // Step 2: Create transaction with document references - ID-first architecture
         const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
-        let transactionAmount = -Math.abs(parseFloat(formData.amount));
+        const directApiType = transactionType === 'income' ? 'income' : 'expense';
+        let transactionAmount = directApiType === 'income'
+          ? Math.abs(parseFloat(formData.amount))
+          : -Math.abs(parseFloat(formData.amount));
         let transactionNotes = formData.notes;
         let transactionCategoryId = formData.categoryId;
         let transactionAllocations = null;
+        const directApiVendor = directApiType === 'income'
+          ? resolveDepositVendor(formData, clientData)
+          : { vendorId: formData.vendorId, vendorName: clientData.vendors.find((v) => v.id === formData.vendorId)?.name || '' };
         
         // Handle bank fees if checkbox is checked
-        if (addBankFees) {
+        if (addBankFees && directApiType === 'expense') {
           // Backend expects amount and allocation.amount in PESOS (converts to centavos)
           const originalAmountDollars = parseFloat(formData.amount);
           const commissionAmountDollars = 5.00;
@@ -460,13 +553,14 @@ const UnifiedExpenseEntry = ({
           date: formData.date, // Send date as string, let backend handle timezone conversion
           amount: transactionAmount, // Ensure negative for expenses (in dollars)
           categoryId: transactionCategoryId, // PRIMARY: category ID
-          vendorId: formData.vendorId, // PRIMARY: vendor ID
+          vendorId: directApiVendor.vendorId,
+          vendorName: directApiVendor.vendorName,
           notes: transactionNotes,
           accountId: formData.accountId, // PRIMARY: account ID
           accountType: selectedAccountData?.type || 'bank', // Account metadata
           paymentMethodId: formData.paymentMethodId, // PRIMARY: payment method ID
           unitId: formData.unitId || null, // PRIMARY: unit ID
-          type: 'expense',
+          type: directApiType,
           enteredBy: userEmail,
           documents: uploadedDocuments.map(doc => doc.id), // Include document references
           ...(transactionAllocations && { allocations: transactionAllocations }),
@@ -662,21 +756,27 @@ const UnifiedExpenseEntry = ({
 
   // Re-default bank-fee checkbox whenever the selected account changes (Issue #329).
   useEffect(() => {
-    if (!formData.accountId || rawAccountData.length === 0) {
+    if (transactionType === 'income' || !formData.accountId || rawAccountData.length === 0) {
       return;
     }
     setAddBankFees(getAccountDefaultBankFees(rawAccountData, formData.accountId));
-  }, [formData.accountId, rawAccountData]);
+  }, [formData.accountId, rawAccountData, transactionType]);
 
   // Handle initial data - useful for editing existing transactions
   useEffect(() => {
     if (initialData) {
       console.log('🔄 Loading initial data for edit mode:', initialData);
+      if (initialData.type === 'income') {
+        setTransactionType('income');
+      } else if (initialData.type !== 'adjustment') {
+        setTransactionType('expense');
+      }
       setFormData(prev => ({
         ...prev,
         date: initialData.date || prev.date,
         amount: initialData.amount || '',
         vendorId: initialData.vendorId || '',
+        vendorName: initialData.vendorName || '',
         categoryId: initialData.categoryId || '',
         accountId: initialData.accountId || '',
         paymentMethodId: initialData.paymentMethodId || '',
@@ -880,6 +980,44 @@ const UnifiedExpenseEntry = ({
             </div>
           ) : (
             <>
+              <div className="form-row single">
+                <div className="form-group">
+                  <label className="form-label">Transaction Type</label>
+                  <div className="transaction-type-toggle" style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className={`btn-toggle ${transactionType === 'expense' ? 'active' : ''}`}
+                      onClick={() => handleTransactionTypeChange('expense')}
+                      disabled={isClearedTransaction}
+                      style={{
+                        padding: '8px 16px',
+                        border: transactionType === 'expense' ? '2px solid #007bff' : '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: transactionType === 'expense' ? '#e7f1ff' : '#fff',
+                        cursor: isClearedTransaction ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {t('tx.transactionType.expense')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-toggle ${transactionType === 'income' ? 'active' : ''}`}
+                      onClick={() => handleTransactionTypeChange('income')}
+                      disabled={isClearedTransaction}
+                      style={{
+                        padding: '8px 16px',
+                        border: transactionType === 'income' ? '2px solid #007bff' : '1px solid #ccc',
+                        borderRadius: '4px',
+                        backgroundColor: transactionType === 'income' ? '#e7f1ff' : '#fff',
+                        cursor: isClearedTransaction ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {t('tx.transactionType.deposit')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* First Row: Date, Amount, and Vendor (Issue #135: Vendor before Category for auto-population) */}
               <div className="form-row triple">
                 <div className="form-group">
@@ -916,24 +1054,41 @@ const UnifiedExpenseEntry = ({
                 {/* Vendor - moved before Category for auto-population (Issue #135) */}
                 <div className="form-group">
                   <label htmlFor="vendor" className="form-label">Vendor</label>
-                  <select
-                    id="vendor"
-                    value={formData.vendorId}
-                    onChange={(e) => handleVendorChange(e.target.value)}
-                    className={fieldErrors.vendorId ? 'error' : ''}
-                    required
-                  >
-                    <option value="">Select vendor</option>
-                    {clientData.vendors
-                      .filter(vendor => vendor.status !== 'inactive' || vendor.id === formData.vendorId)
-                      .map((vendor) => (
+                  {isDepositMode ? (
+                    <>
+                      <input
+                        type="text"
+                        id="vendor"
+                        list="deposit-vendor-options"
+                        value={getDepositVendorInputValue()}
+                        onChange={(e) => handleDepositVendorInputChange(e.target.value)}
+                        className={fieldErrors.vendorId ? 'error' : ''}
+                        placeholder="Deposit"
+                      />
+                      <datalist id="deposit-vendor-options">
+                        {activeVendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.name} />
+                        ))}
+                      </datalist>
+                    </>
+                  ) : (
+                    <select
+                      id="vendor"
+                      value={formData.vendorId}
+                      onChange={(e) => handleVendorChange(e.target.value)}
+                      className={fieldErrors.vendorId ? 'error' : ''}
+                      required
+                    >
+                      <option value="">Select vendor</option>
+                      {activeVendors.map((vendor) => (
                         <option key={vendor.id} value={vendor.id}>
                           {vendor.name}
                           {vendor.category && ` (${vendor.category})`}
                         </option>
                       ))}
-                  </select>
-                  {fieldErrors.vendor && <span className="field-error">{fieldErrors.vendor}</span>}
+                    </select>
+                  )}
+                  {fieldErrors.vendorId && <span className="field-error">{fieldErrors.vendorId}</span>}
                 </div>
               </div>
 
@@ -1041,6 +1196,7 @@ const UnifiedExpenseEntry = ({
                   {fieldErrors.account && <span className="field-error">{fieldErrors.account}</span>}
                   
                   {/* Bank Fees Checkbox — default from account addBankFees config */}
+                  {!isDepositMode && (
                   <div className="bank-fees-checkbox" style={{ marginTop: '8px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}>
                       <input
@@ -1058,6 +1214,7 @@ const UnifiedExpenseEntry = ({
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
 
