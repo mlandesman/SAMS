@@ -221,9 +221,10 @@ function DashboardView() {
     handleUnitMenuClose();
   };
 
-  // Unit Account Status (SoA data) — non-admin only, re-fetches when selectedUnitId changes
+  // Unit Account Status (SoA data) — unitOwner/unitManager only, not SuperAdmin
+  const showUnitAccountStatus = isUnitOwnerOrManager && !isSuperAdmin;
   const unitAccountClientId = selectedClient?.id;
-  const unitAccountUnitId = isUnitOwnerOrManager ? selectedUnitId : null;
+  const unitAccountUnitId = showUnitAccountStatus ? selectedUnitId : null;
   const { data: unitAccountData, loading: unitAccountLoading, error: unitAccountError } = useUnitAccountStatus(unitAccountClientId, unitAccountUnitId);
 
   // Sync owner names to context for ActivityActionBar
@@ -476,8 +477,8 @@ function DashboardView() {
           </Grid>
         )}
 
-        {/* Unit Account Status Card — non-admin only (replaces HOA Dues Status position) */}
-        {isUnitOwnerOrManager && selectedUnitId && (
+        {/* Unit Account Status Card — unitOwner/unitManager only (not SuperAdmin or admin) */}
+        {showUnitAccountStatus && selectedUnitId && (
           <Grid item xs={12} sm={6} md={4}>
             <Card
               sx={{

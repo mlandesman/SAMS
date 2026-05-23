@@ -85,6 +85,12 @@ const UserManagement = ({
         getSortableName(a).localeCompare(getSortableName(b), undefined, { sensitivity: 'base' })
       );
       setUsers(deduped);
+
+      // Keep selected user in sync with freshly loaded data (View modal reads this shape)
+      setSelectedUser(prev => {
+        if (!prev?.id) return prev;
+        return deduped.find(u => u.id === prev.id) || prev;
+      });
     } catch (err) {
       console.error('Failed to load users:', err);
       setError(err.message || 'Failed to load users');

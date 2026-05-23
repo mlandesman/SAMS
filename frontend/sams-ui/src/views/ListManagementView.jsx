@@ -358,7 +358,7 @@ function ListManagementView() {
   };
 
   // Handle view details action
-  const handleViewDetails = () => {
+  const handleViewDetails = async () => {
     if (!selectedItem) {
       console.log('No item selected for view details');
       return;
@@ -370,14 +370,30 @@ function ListManagementView() {
     }
     
     const currentList = availableLists[tabIndex];
-    console.log('Opening details for:', currentList.id, selectedItem);
+
+    // For users, fetch fresh data so View reflects the latest persisted profile shape
+    let viewItem = selectedItem;
+    if (currentList.id === 'users') {
+      try {
+        const usersResponse = await secureApi.getSystemUsers();
+        const freshUser = usersResponse.users?.find(u => u.id === selectedItem.id);
+        if (freshUser) {
+          viewItem = freshUser;
+          setSelectedItem(freshUser);
+        }
+      } catch (fetchError) {
+        console.warn('Could not refresh user before view details:', fetchError);
+      }
+    }
+
+    console.log('Opening details for:', currentList.id, viewItem);
     
     // Debug: Log profile and notifications data for users
     if (currentList.id === 'users') {
-      console.log('👤 User profile data:', selectedItem.profile);
-      console.log('🔔 User notifications data:', selectedItem.notifications);
-      console.log('🔑 User canLogin:', selectedItem.canLogin);
-      console.log('📊 User accountState:', selectedItem.accountState);
+      console.log('👤 User profile data:', viewItem.profile);
+      console.log('🔔 User notifications data:', viewItem.notifications);
+      console.log('🔑 User canLogin:', viewItem.canLogin);
+      console.log('📊 User accountState:', viewItem.accountState);
     }
     
     // Define detail fields for each list type
@@ -708,7 +724,7 @@ function ListManagementView() {
     
     setDetailModal({
       isOpen: true,
-      item: selectedItem,
+      item: viewItem,
       title,
       fields: detailFields
     });
