@@ -199,33 +199,29 @@ const UnifiedExpenseEntry = ({
   // Handle vendor change - auto-populate category if vendor has default (Issue #135)
   const handleVendorChange = (vendorId) => {
     const selectedVendor = clientData.vendors.find(v => v.id === vendorId);
-    setFormData(prev => ({
-      ...prev,
-      vendorId,
-      vendorName: selectedVendor?.name || '',
-    }));
-    
-    // Clear vendor field error
-    if (fieldErrors.vendorId) {
-      setFieldErrors(prev => ({ ...prev, vendorId: null }));
-    }
-    
+    let categoryIdUpdate = null;
+
     if (selectedVendor?.category) {
-      // Find the category ID matching vendor's default category
       const matchingCategory = clientData.categories.find(
         c => c.name.toLowerCase() === selectedVendor.category.toLowerCase() ||
              c.id === selectedVendor.category
       );
-      
+
       if (matchingCategory) {
         console.log('🏷️ Auto-populating category from vendor:', matchingCategory.name);
-        setFormData(prev => ({ 
-          ...prev, 
-          vendorId,
-          vendorName: selectedVendor?.name || '',
-          categoryId: matchingCategory.id 
-        }));
+        categoryIdUpdate = matchingCategory.id;
       }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      vendorId,
+      vendorName: selectedVendor?.name || '',
+      ...(categoryIdUpdate ? { categoryId: categoryIdUpdate } : {}),
+    }));
+
+    if (fieldErrors.vendorId) {
+      setFieldErrors(prev => ({ ...prev, vendorId: null }));
     }
   };
 
@@ -241,6 +237,8 @@ const UnifiedExpenseEntry = ({
       }
     }
 
+    setSplitAllocations([]);
+    setShowSplitModal(false);
     setTransactionType(nextType);
   };
 
@@ -328,7 +326,7 @@ const UnifiedExpenseEntry = ({
 
         const resolvedVendor = {
           vendorId: formData.vendorId || initialData?.vendorId,
-          vendorName: selectedVendor?.name || initialData?.vendorName || '',
+          vendorName: selectedVendor?.name || initialData?.vendorName || formData.vendorName || '',
         };
         
         // When editing, preserve original transaction fields that might not be in form

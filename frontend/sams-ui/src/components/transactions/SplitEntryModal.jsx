@@ -128,17 +128,9 @@ const SplitEntryModal = ({
       return 0;
     }
 
-    let transactionAmountCentavos = typeof transactionData.amount === 'number'
+    return typeof transactionData.amount === 'number'
       ? Math.round(transactionData.amount)
       : Math.round(dollarsToCents(transactionData.amount));
-
-    if (transactionAmountCentavos > 0) {
-      return transactionAmountCentavos;
-    }
-    if (transactionAmountCentavos < 0) {
-      return transactionAmountCentavos;
-    }
-    return 0;
   };
 
   const getRemainingBalance = () => {
