@@ -123,23 +123,26 @@ const SplitEntryModal = ({
   };
 
   // Calculate remaining balance
+  const getSignedTransactionAmountCentavos = () => {
+    if (!transactionData?.amount && transactionData?.amount !== 0) {
+      return 0;
+    }
+
+    return typeof transactionData.amount === 'number'
+      ? Math.round(transactionData.amount)
+      : Math.round(dollarsToCents(transactionData.amount));
+  };
+
   const getRemainingBalance = () => {
-    if (!transactionData?.amount) {
+    if (!transactionData?.amount && transactionData?.amount !== 0) {
       console.log('⚠️ No transaction amount available');
       return 0;
     }
     
     // CRITICAL: transactionData.amount should ALREADY be in centavos (cents) as an integer
-    // If it's a string (from formData), convert from dollars to centavos (for new splits)
-    // If it's a number, assume it's already in centavos
-    let transactionAmountCentavos = typeof transactionData.amount === 'number' 
-      ? Math.round(transactionData.amount) // Already in centavos, ensure integer
-      : Math.round(dollarsToCents(transactionData.amount)); // Convert from dollars to centavos (for new splits)
-    
-    // Ensure transaction amount is negative for expenses (expenses are always negative in centavos)
-    if (transactionAmountCentavos > 0) {
-      transactionAmountCentavos = -Math.abs(transactionAmountCentavos);
-    }
+    // Expenses are negative; income/deposits are positive.
+    let transactionAmountCentavos = getSignedTransactionAmountCentavos();
+    const isExpense = transactionAmountCentavos < 0;
     
     console.log('💰 Transaction amount (centavos, integer):', transactionAmountCentavos);
     
@@ -147,17 +150,14 @@ const SplitEntryModal = ({
       if (allocation.amount === '' || allocation.amount === null || allocation.amount === undefined) {
         return sum;
       }
-      // allocation.amount should already be in centavos (from initialization or user input)
-      // If it's a string, user is typing dollars - convert to centavos (for user input)
-      // If it's a number, it's already in centavos from initialization or previous user input
       let amount = typeof allocation.amount === 'number' 
-        ? Math.round(allocation.amount) // Already in centavos, ensure integer
-        : Math.round(dollarsToCents(allocation.amount || 0)); // User typing dollars, convert to centavos
+        ? Math.round(allocation.amount)
+        : Math.round(dollarsToCents(allocation.amount || 0));
       
-      // Ensure allocation amounts are negative for expenses (matching transaction amount sign)
-      // If amount is positive, make it negative to match expense format
-      if (amount > 0 && transactionAmountCentavos < 0) {
+      if (isExpense && amount > 0) {
         amount = -Math.abs(amount);
+      } else if (!isExpense && amount < 0) {
+        amount = Math.abs(amount);
       }
       
       console.log(`  Allocation: ${allocation.categoryName || 'No category'} = ${amount} centavos (integer)`);
@@ -166,8 +166,6 @@ const SplitEntryModal = ({
     
     console.log('💰 Allocated total (centavos, integer):', allocatedTotal);
     
-    // For expenses: transactionAmountCentavos is negative, allocatedTotal is negative
-    // Use absolute values for comparison (both should be negative, but we compare magnitudes)
     const remaining = Math.abs(transactionAmountCentavos) - Math.abs(allocatedTotal);
     console.log('💰 Remaining balance (centavos):', remaining);
     

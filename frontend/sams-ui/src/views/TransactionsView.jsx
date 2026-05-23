@@ -38,7 +38,6 @@ import {
   faPrint,
   faCheckDouble,
   faTrash,
-  faHandHoldingDollar,
   faFileInvoice
 } from '@fortawesome/free-solid-svg-icons';
 import '../layout/ActionBar.css';
@@ -120,7 +119,7 @@ function TransactionsView() {
   const [showExpenseSuccessModal, setShowExpenseSuccessModal] = useState(false);
   const [expenseSuccessData, setExpenseSuccessData] = useState(null);
   
-  // Unified payment modal state
+  // Unified payment modal state (cross-view entry via location.state from Dashboard/Water Bills)
   const [showUnifiedPaymentModal, setShowUnifiedPaymentModal] = useState(false);
   const [selectedUnitForPayment, setSelectedUnitForPayment] = useState(null);
   
@@ -1235,12 +1234,6 @@ function TransactionsView() {
   };
   
   // Unified payment modal handlers
-  const handleOpenUnifiedPaymentModal = (unitId = null) => {
-    console.log('🟢 [TransactionsView] Opening Unified Payment Modal:', { unitId, selectedClient: selectedClient?.id });
-    setSelectedUnitForPayment(unitId);
-    setShowUnifiedPaymentModal(true);
-  };
-  
   const handleCloseUnifiedPaymentModal = () => {
     setShowUnifiedPaymentModal(false);
     setSelectedUnitForPayment(null);
@@ -1535,22 +1528,11 @@ function TransactionsView() {
   return (
     <div className="view-container">
       <ActivityActionBar>
-        {/* Only SuperAdmin can receive payments */}
-        {isSuperAdmin(samsUser) && (
-          <button 
-            className="action-item" 
-            onClick={() => handleOpenUnifiedPaymentModal()}
-          >
-            <FontAwesomeIcon icon={faHandHoldingDollar} />
-            <span>{t('tx.receivePayment')}</span>
-          </button>
-        )}
-        
         {/* Only SuperAdmin can add transactions */}
         {isSuperAdmin(samsUser) && (
           <button className="action-item" onClick={() => handleAction('add')}>
             <FontAwesomeIcon icon={faPlus} />
-            <span>{t('tx.addExpense')}</span>
+            <span>{t('tx.newTransaction')}</span>
           </button>
         )}
         
@@ -1861,7 +1843,8 @@ function TransactionsView() {
               // For adjustments, store the original amount with sign for use when saving
               originalAmount: extractAmount(selectedTransaction.amount, true),
               clearedDate: selectedTransaction.clearedDate || null,
-              vendorId: selectedTransaction.vendorId || '',  // Use ID field
+              vendorId: selectedTransaction.vendorId || '',
+              vendorName: selectedTransaction.vendorName || selectedTransaction.vendor || '',
               categoryId: selectedTransaction.categoryId || '',  // Use ID field
               accountId: selectedTransaction.accountId || '',  // Use ID field
               paymentMethodId: selectedTransaction.paymentMethodId || selectedTransaction.paymentMethod || '',  // Check both ID and string
@@ -2279,19 +2262,12 @@ function TransactionsView() {
 
       {/* Unified Payment Modal */}
       {showUnifiedPaymentModal && (
-        <>
-          {console.log('🟢 [TransactionsView] Rendering UnifiedPaymentModal:', { 
-            isOpen: showUnifiedPaymentModal, 
-            unitId: selectedUnitForPayment,
-            clientId: selectedClient?.id 
-          })}
-          <UnifiedPaymentModal
-            isOpen={showUnifiedPaymentModal}
-            onClose={handleCloseUnifiedPaymentModal}
-            unitId={selectedUnitForPayment}
-            onSuccess={handleUnifiedPaymentSuccess}
-          />
-        </>
+        <UnifiedPaymentModal
+          isOpen={showUnifiedPaymentModal}
+          onClose={handleCloseUnifiedPaymentModal}
+          unitId={selectedUnitForPayment}
+          onSuccess={handleUnifiedPaymentSuccess}
+        />
       )}
 
       {/* Account Reconciliation Modal */}

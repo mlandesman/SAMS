@@ -3,6 +3,24 @@
 
 ## Sprint Catalog (Current and Historical Status)
 
+### ✅ Sprint GH332-DEPOSIT-WORKFLOW: Desktop Deposit Entry + HOA Local Payment Modal (Complete)
+*Make Deposit a first-class desktop transaction type; stop forcing HOA payment entry through a Transactions view jump; clean up Transactions ActionBar.*
+
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **332** | Desktop deposit workflow (Expense/Deposit toggle, HOA local UPC, Transactions cleanup) | high | ~8-12h | ✅ COMPLETE (PR #345 — User verified; Manager APPROVED 2026-05-23; merge pending) |
+
+**Theme**: Deposit as `type: income` in `UnifiedExpenseEntry`; collection vendor `id: deposit`; HOA hosts `UnifiedPaymentModal` locally.  
+**Risk**: Medium (transaction entry semantics, split sign handling). Mitigated by User QA + BugBot + pre-PR checks.  
+**Dependencies**: None.  
+**Status**: ✅ COMPLETE (May 23, 2026) — branch `feat/gh332-deposit-workflow`; PR #345 open for merge.  
+**User Decisions**: Non-admin unpaid HOA cell = no-op; retain TransactionsView `openUnifiedPayment` for Dashboard/Water Bills.  
+**Carry-forward Tech Debt**: Move Dashboard/Water Bills to local UPC modal and remove TransactionsView cross-view plumbing in a future sprint.  
+**Release Note**: Changelog pending entry for #332 added 2026-05-23.  
+**Archive**: `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_GH332_Deposit_Workflow_2026-05-23/`
+
+---
+
 ### ✅ Sprint GH333-UPC-UNIT-106-CLOSURE: AVII Unit 106 Production-Payment Blocker — Stage 1 + Stage 3 (Complete)
 *Resolve a held $30,177.99 closing payment for AVII Unit 106 caused by UPC vs SoA divergence; correct Prod data drift on 7 AVII units; harden deployed runtime against the same drift class.*
 
@@ -217,16 +235,16 @@
 ### 🔧 Sprint DEBT-1: Tech Debt Interlude (4-6 hours)
 *Clean up accumulated tech debt between major features*
 
-| # | Title | Priority | Est |
-|---|-------|----------|-----|
-| **220** | Replace payment-type credit reversal checks with metadata flag | tech-debt | 2h |
-| **223** | Credit Balance History modal UI improvements | bug | 1-2h |
-| **166** | Refactor email services to use shared reportEmailUtils | tech-debt | 1-2h |
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **220** | Replace payment-type credit reversal checks with metadata flag | tech-debt | 2h | 🟡 OPEN |
+| **223** | Credit Balance History modal UI improvements | bug | 1-2h | ✅ CLOSED (PR #341, merged May 22, 2026 — delivered as part of Stabilization Bundle alongside `#337`) |
+| **166** | Refactor email services to use shared reportEmailUtils | tech-debt | 1-2h | 🟡 OPEN |
 
 **Theme**: Code quality and consistency  
 **Risk**: Low  
 **Dependencies**: After BANK-RECON  
-**Status**: Planned — roadmap interlude after sprint 14
+**Status**: Partial — `#223` closed via PR #341. Remaining items (`#220`, `#166`) deferred for future sprint slot.
 
 ---
 
@@ -718,7 +736,7 @@
 |---|-------|----------|---------------|-------|
 | **231** | Adding a new user role for a new client doesn't grant access | low | None | `propertyAccess` map not updated when assigning user to a second client. Manual workaround available via Firebase Console. Address in a future cleanup sprint. |
 | **79** | HTTP 502 timeout on Email All completion | low | None | Cosmetic — emails send successfully, just shows error at end. Workaround: dismiss error. Fix: make endpoint return immediately, rely on polling. |
-| **12** | Transaction Link Not Found modal needs formatting | low | None | Custom error modal needed instead of raw Node error. No functional impact. |
+| ~~**12**~~ | ~~Transaction Link Not Found modal needs formatting~~ | low | ✅ CLOSED | Closed as already-implemented during Stabilization Bundle review (May 22, 2026). Current behavior surfaces a clean non-blocking toast ("Transaction not found. It may have been deleted.") — replaced by unrelated UI polish work between issue filing and this sprint. No code change needed. |
 | **122** | Convert email to Gmail OAuth | low | None | App passwords still supported, no deprecation date. OAuth adds complexity without current benefit. #171 (Error Monitor) catches auth failures proactively. Revisit if Google announces deprecation. |
 | **169** | Enhance or eliminate auditLog functionality | low | None | Decision needed: either build UI to use audit data or eliminate the writes. No current consumer. |
 | **166** | Refactor email services to use shared reportEmailUtils | low | None | Tech debt cleanup. Multiple email services have inline implementations that should use shared utilities from Polling-1. |
@@ -1135,6 +1153,10 @@
 
 ## Notes
 
+- **Stabilization Bundle cluster `#338` + `#307`**: ✅ COMPLETE (May 22, 2026) — PR [#343](https://github.com/mlandesman/SAMS/pull/343) squash-merged to `main` as commit `c922bf4`. Backend: removed self-vs-other field-omission branch in `updateUser` so every call persists the full editable profile field set uniformly (route-level auth gates untouched; 3/3 unit tests pass). Frontend: User View modal fresh-fetches on open; SuperAdmin dashboard suppresses the unit-owner Unit Account Status card while preserving it for `unitOwner` / `unitManager`. Two scope-adjacent fixes also landed: `canLogin` normalized before Firebase Auth side effects, and Edit modal WYSIWYS always-sends `requirePasswordChange`. BugBot raised 2 Medium findings; User adjudicated both as by-design via PR comment (admin `users.manage` authority over policy fields including self-record; modal checkbox-display-is-source-of-truth invariant). GitGuardian SUCCESS. **All 4 Stabilization Bundle clusters now closed** (`#337`+`#223`, `#329`, `#12`, `#338`+`#307`). Changelog has 5 pending entries ready for the next versioned deploy.
+- **Stabilization Bundle cluster `#12`**: ✅ CLOSED as **already-implemented** (May 22, 2026) — no PR, no code change. Current UI already surfaces a clean non-blocking yellow toast ("Transaction not found. It may have been deleted.") when an HOA Dues paid-cell click navigates to a transaction that no longer exists. Spec contract satisfied empirically; replaced by unrelated UI polish work between issue filing and this sprint. APM Task 2.4 marked Done without dispatch execution. Manager Review at `.apm/memory/stage-02/cluster-12-review.md`. Last remaining Stabilization Bundle cluster: `#338`+`#307` (user-update + dashboard) — continuing under the active APM session.
+- **Stabilization Bundle cluster `#329`**: ✅ COMPLETE (May 22, 2026) — PR [#342](https://github.com/mlandesman/SAMS/pull/342) squash-merged to `main`. Removed `clientId === 'AVII'` hardcoded branching from Add Expense bank-fee checkbox default; default now reads `addBankFees` from the selected account in `accounts[]` (strict `=== true`; missing/null/false → unchecked) and re-evaluates immediately on account change. Single commit on branch; BugBot SUCCESS; User in-session verified on AVII. Changelog pending entry added. Remaining stabilization-bundle clusters: `#338`+`#307` (user-update + dashboard), `#12` (transaction-link UX) — continuing under the active APM session.
+- **Stabilization Bundle cluster `#337` + `#223`**: ✅ COMPLETE (May 22, 2026) — PR [#341](https://github.com/mlandesman/SAMS/pull/341) squash-merged to `main`. Delivered persisted bilingual credit-history client messages (`userMessage` + `userMessage_es` with deterministic mapping + DeepL Translate button + idempotent backfill script) and full Sandyland modal standardization on the live credit-balance modals. AVII prod data backfilled (90 entries). MTC prod backfill available as optional follow-up. Dead-mounted credit modals filed for separate cleanup as `#340`. Changelog pending entries added. Remaining stabilization-bundle issues `#338`, `#329`, `#12`, `#307` are next clusters in the same APM session.
 - **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250.
 - **Production v1.19.1** (Mar 20, 2026): SoA **email** preamble fix #255 — PDF/data were always correct; email body had double-counted credit; now uses closing balance only.
 - **Sprint WA / WA-BACKEND**: ⏸️ PAUSED (Mar 20, 2026) — webhook code in main (PR #253); Meta/WhatsApp Business setup blocked externally (not a code defect); WA-FRONTEND deferred until unblock.
@@ -1178,7 +1200,11 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: May 6, 2026 — Recorded reconciliation follow-up closeout (PR #330), marked issue #306 closed, and aligned CLEANUP-SWEEP-1 status text with final merged scope.*  
+*Updated: May 22, 2026 — Recorded cluster `#338`+`#307` closure (PR #343 squash-merged). **All 4 Stabilization Bundle clusters now closed**; sprint moves into Stage 3 evidence/packaging Tasks under the active APM session.*  
+*Previous update: May 22, 2026 — Recorded cluster `#12` closure as already-implemented (no code change); only `#338`+`#307` remains in the active Stabilization Bundle.*  
+*Previous update: May 22, 2026 — Recorded cluster `#329` closure (PR #342 squash-merged) under Stabilization Bundle; remaining bundle clusters `#338`+`#307` and `#12` continue under the active APM session.*  
+*Previous update: May 22, 2026 — Marked `#223` closed within DEBT-1 (delivered via Stabilization Bundle PR #341 alongside `#337`); added cluster closure note. Remaining stabilization-bundle issues `#338`/`#329`/`#12`/`#307` continue under the active APM session as the next clusters.*  
+*Previous update: May 6, 2026 — Recorded reconciliation follow-up closeout (PR #330), marked issue #306 closed, and aligned CLEANUP-SWEEP-1 status text with final merged scope.*  
 *Previous update: April 27, 2026 — Marked Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) complete after PR #320 merge to `main`; retained carry-forward/defer governance for #319 and #318; changelog pending entry is in place for upcoming deployment.*  
 *Previous update: April 25, 2026 — Between-sprint reset: added ACTIVE Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) as next execution sprint, moved UC-LITE sequencing to immediately follow localization parity, and kept backup/debt work queued unless risk promotes them.*  
 *Previous update: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.*  
