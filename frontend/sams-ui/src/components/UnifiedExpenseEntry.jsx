@@ -46,19 +46,15 @@ function getAccountDefaultBankFees(rawAccounts, accountId) {
   return account.addBankFees === true;
 }
 
-function resolveDepositVendor(formData, clientData) {
-  const vendorId = formData.vendorId;
-  if (!vendorId || vendorId === DEPOSIT_VENDOR_OPTION) {
-    return { vendorId: 'deposit', vendorName: 'Deposit' };
-  }
-  const matchedVendor = clientData.vendors.find((v) => v.id === vendorId);
+const DEPOSIT_VENDOR_ID = 'deposit';
+
+function getDepositVendorDefaults(vendors) {
+  const depositVendor = vendors.find((v) => v.id === DEPOSIT_VENDOR_ID);
   return {
-    vendorId,
-    vendorName: matchedVendor?.name || formData.vendorName || '',
+    vendorId: DEPOSIT_VENDOR_ID,
+    vendorName: depositVendor?.name || 'Deposit',
   };
 }
-
-const DEPOSIT_VENDOR_OPTION = 'deposit';
 
 function createDefaultFormData() {
   return {
@@ -129,8 +125,6 @@ const UnifiedExpenseEntry = ({
     (vendor) => vendor.status !== 'inactive' || vendor.id === formData.vendorId
   );
 
-  const getDepositVendorSelectValue = () => formData.vendorId || DEPOSIT_VENDOR_OPTION;
-
   const getEntryTitle = () => {
     if (initialData) {
       return isDepositMode ? t('tx.modal.editDeposit') : t('tx.modal.editExpense');
@@ -146,18 +140,6 @@ const UnifiedExpenseEntry = ({
       return isDepositMode ? t('tx.modal.updateDeposit') : t('tx.modal.updateExpense');
     }
     return isDepositMode ? t('tx.modal.submitDeposit') : t('tx.modal.submitExpense');
-  };
-
-  const handleDepositVendorSelectChange = (selectedValue) => {
-    if (selectedValue === DEPOSIT_VENDOR_OPTION) {
-      setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
-    } else {
-      handleVendorChange(selectedValue);
-    }
-
-    if (fieldErrors.vendorId) {
-      setFieldErrors((prev) => ({ ...prev, vendorId: null }));
-    }
   };
 
   // Confirmation modal state - removed, now handled by parent component
@@ -254,9 +236,8 @@ const UnifiedExpenseEntry = ({
 
     if (nextType === 'income') {
       setAddBankFees(false);
-      const hasRealVendor = Boolean(formData.vendorId && formData.vendorId !== DEPOSIT_VENDOR_OPTION);
-      if (!hasRealVendor) {
-        setFormData((prev) => ({ ...prev, vendorId: '', vendorName: 'Deposit' }));
+      if (!formData.vendorId) {
+        setFormData((prev) => ({ ...prev, ...getDepositVendorDefaults(clientData.vendors) }));
       }
     }
 
@@ -345,12 +326,10 @@ const UnifiedExpenseEntry = ({
           transactionAmount = -Math.abs(parseFloat(formData.amount)); // Negative for expenses
         }
 
-        const resolvedVendor = isDepositMode
-          ? resolveDepositVendor(formData, clientData)
-          : {
-              vendorId: formData.vendorId || initialData?.vendorId,
-              vendorName: selectedVendor?.name || initialData?.vendorName || '',
-            };
+        const resolvedVendor = {
+          vendorId: formData.vendorId || initialData?.vendorId,
+          vendorName: selectedVendor?.name || initialData?.vendorName || '',
+        };
         
         // When editing, preserve original transaction fields that might not be in form
         const transactionData = {
@@ -513,9 +492,10 @@ const UnifiedExpenseEntry = ({
         let transactionNotes = formData.notes;
         let transactionCategoryId = formData.categoryId;
         let transactionAllocations = null;
-        const directApiVendor = directApiType === 'income'
-          ? resolveDepositVendor(formData, clientData)
-          : { vendorId: formData.vendorId, vendorName: clientData.vendors.find((v) => v.id === formData.vendorId)?.name || '' };
+        const directApiVendor = {
+          vendorId: formData.vendorId,
+          vendorName: clientData.vendors.find((v) => v.id === formData.vendorId)?.name || formData.vendorName || '',
+        };
         
         // Handle bank fees if checkbox is checked
         if (addBankFees && directApiType === 'expense') {
@@ -774,7 +754,7 @@ const UnifiedExpenseEntry = ({
         ...prev,
         date: initialData.date || prev.date,
         amount: initialData.amount || '',
-        vendorId: initialData.vendorId === 'deposit' ? '' : (initialData.vendorId || ''),
+        vendorId: initialData.vendorId || '',
         vendorName: initialData.vendorName || '',
         categoryId: initialData.categoryId || '',
         accountId: initialData.accountId || '',
@@ -1059,38 +1039,21 @@ const UnifiedExpenseEntry = ({
                 {/* Vendor - moved before Category for auto-population (Issue #135) */}
                 <div className="form-group">
                   <label htmlFor="vendor" className="form-label">Vendor</label>
-                  {isDepositMode ? (
-                    <select
-                      id="vendor"
-                      value={getDepositVendorSelectValue()}
-                      onChange={(e) => handleDepositVendorSelectChange(e.target.value)}
-                      className={fieldErrors.vendorId ? 'error' : ''}
-                    >
-                      <option value={DEPOSIT_VENDOR_OPTION}>Deposit</option>
-                      {activeVendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                          {vendor.category && ` (${vendor.category})`}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select
-                      id="vendor"
-                      value={formData.vendorId}
-                      onChange={(e) => handleVendorChange(e.target.value)}
-                      className={fieldErrors.vendorId ? 'error' : ''}
-                      required
-                    >
-                      <option value="">Select vendor</option>
-                      {activeVendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name}
-                          {vendor.category && ` (${vendor.category})`}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    id="vendor"
+                    value={formData.vendorId}
+                    onChange={(e) => handleVendorChange(e.target.value)}
+                    className={fieldErrors.vendorId ? 'error' : ''}
+                    required={!isDepositMode}
+                  >
+                    {!isDepositMode && <option value="">Select vendor</option>}
+                    {activeVendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                        {vendor.category && ` (${vendor.category})`}
+                      </option>
+                    ))}
+                  </select>
                   {fieldErrors.vendorId && <span className="field-error">{fieldErrors.vendorId}</span>}
                 </div>
               </div>
