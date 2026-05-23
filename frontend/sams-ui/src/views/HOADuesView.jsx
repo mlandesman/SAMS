@@ -28,6 +28,7 @@ import { totalCreditPesosFromDuesDataByUnitsList } from '@shared/utils/hoaCredit
 import debug from '../utils/debug';
 import ContextMenu from '../components/ContextMenu';
 import PaymentDetailsModal from '../components/PaymentDetailsModal';
+import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './HOADuesView.css';
 
@@ -93,6 +94,9 @@ function HOADuesView() {
     isOpen: false,
     data: null
   });
+
+  const [showUnifiedPaymentModal, setShowUnifiedPaymentModal] = useState(false);
+  const [selectedUnitForPayment, setSelectedUnitForPayment] = useState(null);
   
   // Check for url parameters on component mount or url change
   useEffect(() => {
@@ -160,26 +164,10 @@ function HOADuesView() {
       const canRecordPayment = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
       if (canRecordPayment) {
         console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
-        navigate('/transactions', { 
-          state: { 
-            openUnifiedPayment: true, 
-            unitId,
-            monthIndex: fiscalMonth
-          }
-        });
+        handleOpenUnifiedPaymentModal(unitId);
       } else {
         // View-only: navigate to transactions without opening payment modal
         navigate('/transactions');
-      }
-      
-      // Update sidebar activity
-      try {
-        const event = new CustomEvent('activityChange', { 
-          detail: { activity: 'transactions' } 
-        });
-        window.dispatchEvent(event);
-      } catch (error) {
-        console.error('Error dispatching activity change event:', error);
       }
     }
   };
@@ -438,25 +426,23 @@ function HOADuesView() {
   
   
   // Open unified payment modal when clicking "Add Payment" button
-  // Navigates to Transactions view which hosts the UnifiedPaymentModal
   const handleAddPaymentClick = () => {
-    navigate('/transactions', { 
-      state: { 
-        openUnifiedPayment: true,
-        unitId: null,  // No pre-selection
-        monthIndex: null
-      }
-    });
-    
-    // Update sidebar activity
-    try {
-      const event = new CustomEvent('activityChange', { 
-        detail: { activity: 'transactions' } 
-      });
-      window.dispatchEvent(event);
-    } catch (error) {
-      console.error('Error dispatching activity change event:', error);
-    }
+    handleOpenUnifiedPaymentModal();
+  };
+
+  const handleOpenUnifiedPaymentModal = (unitId = null) => {
+    setSelectedUnitForPayment(unitId);
+    setShowUnifiedPaymentModal(true);
+  };
+
+  const handleCloseUnifiedPaymentModal = () => {
+    setShowUnifiedPaymentModal(false);
+    setSelectedUnitForPayment(null);
+  };
+
+  const handleUnifiedPaymentSuccess = async () => {
+    await refreshData();
+    handleCloseUnifiedPaymentModal();
   };
 
   // Close credit edit modal
@@ -1205,6 +1191,15 @@ function HOADuesView() {
         onClose={() => setDetailsModal({ isOpen: false, data: null })}
         details={detailsModal.data}
       />
+
+      {showUnifiedPaymentModal && (
+        <UnifiedPaymentModal
+          isOpen={showUnifiedPaymentModal}
+          onClose={handleCloseUnifiedPaymentModal}
+          unitId={selectedUnitForPayment}
+          onSuccess={handleUnifiedPaymentSuccess}
+        />
+      )}
     </div>
   );
 }
