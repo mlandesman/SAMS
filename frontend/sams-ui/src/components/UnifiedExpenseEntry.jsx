@@ -34,11 +34,15 @@ function splitAllocationsAlreadyIncludeBankFees(allocations) {
   return hasFeeLine && hasIvaLine;
 }
 
-function getClientDefaultBankFees(clientId, isBankAccount) {
-  if (!clientId) return Boolean(isBankAccount);
-  if (clientId === 'AVII') return true;
-  if (clientId === 'MTC') return false;
-  return Boolean(isBankAccount);
+function getAccountDefaultBankFees(rawAccounts, accountId) {
+  if (!accountId || !Array.isArray(rawAccounts)) {
+    return false;
+  }
+  const account = rawAccounts.find((a) => a?.id === accountId);
+  if (!account) {
+    return false;
+  }
+  return account.addBankFees === true;
 }
 
 const UnifiedExpenseEntry = ({ 
@@ -95,7 +99,7 @@ const UnifiedExpenseEntry = ({
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitAllocations, setSplitAllocations] = useState([]);
   
-  // Bank fees checkbox state (for AVII and corporate accounts)
+  // Bank fees checkbox — default from selected account's addBankFees config
   const [addBankFees, setAddBankFees] = useState(false);
   const isClearedTransaction = Boolean(initialData?.clearedDate);
 
@@ -643,13 +647,6 @@ const UnifiedExpenseEntry = ({
             ...(defaultPaymentMethod && { paymentMethodId: defaultPaymentMethod.id }),
             ...(defaultAccount && { accountId: defaultAccount.id })
           }));
-          
-          // Apply client-aware bank fee defaults.
-          if (defaultAccount) {
-            const accountData = rawAccounts.find(a => a.id === defaultAccount.id || a.name === defaultAccount.name);
-            const isBankAccount = accountData && accountData.type !== 'cash';
-            setAddBankFees(getClientDefaultBankFees(clientId, isBankAccount));
-          }
         }
 
       } catch (error) {
@@ -662,6 +659,14 @@ const UnifiedExpenseEntry = ({
 
     loadClientData();
   }, [clientId]);
+
+  // Re-default bank-fee checkbox whenever the selected account changes (Issue #329).
+  useEffect(() => {
+    if (!formData.accountId || rawAccountData.length === 0) {
+      return;
+    }
+    setAddBankFees(getAccountDefaultBankFees(rawAccountData, formData.accountId));
+  }, [formData.accountId, rawAccountData]);
 
   // Handle initial data - useful for editing existing transactions
   useEffect(() => {
@@ -1021,12 +1026,7 @@ const UnifiedExpenseEntry = ({
                     id="account"
                     value={formData.accountId}
                     onChange={(e) => {
-                      const newAccountId = e.target.value;
-                      setFormData(prev => ({ ...prev, accountId: newAccountId }));
-                      // Apply client-aware bank fee defaults when account changes.
-                      const selectedAccount = clientData.accounts.find(a => a.id === newAccountId);
-                      const isBankAccount = selectedAccount && selectedAccount.type !== 'cash';
-                      setAddBankFees(getClientDefaultBankFees(clientId, isBankAccount));
+                      setFormData(prev => ({ ...prev, accountId: e.target.value }));
                     }}
                     className={fieldErrors.accountId ? 'error' : ''}
                     required
@@ -1040,7 +1040,7 @@ const UnifiedExpenseEntry = ({
                   </select>
                   {fieldErrors.account && <span className="field-error">{fieldErrors.account}</span>}
                   
-                  {/* Bank Fees Checkbox - auto-checked for bank accounts */}
+                  {/* Bank Fees Checkbox — default from account addBankFees config */}
                   <div className="bank-fees-checkbox" style={{ marginTop: '8px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: isClearedTransaction ? 'not-allowed' : 'pointer' }}>
                       <input
