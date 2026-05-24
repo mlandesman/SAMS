@@ -3,6 +3,24 @@
 
 ## Sprint Catalog (Current and Historical Status)
 
+### ✅ Sprint GH344-SPLIT-PRIMARY-ALLOCATION: TransactionsView Split Primary Category Display (Complete)
+*Make AVII TransactionsView readable by showing the primary allocation category with a (+N) hint instead of literal -Split-; enforce primary-at-index-0 at write time.*
+
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **344** | [Enhancement] Redesign TransactionView to better expose Split transactions | medium | ~4-6h | ✅ COMPLETE (PR pending — User verified; Manager APPROVED 2026-05-24; BugBot + merge pending) |
+
+**Theme**: Position-as-meaning primary allocation via write-time sort; desktop TransactionsView cell renderer only.  
+**Risk**: Low (3 files; controller + shared util + one React component). Mitigated by notes-index ordering constraint and User QA on AVII + MTC.  
+**Dependencies**: None.  
+**Status**: ✅ COMPLETE (May 24, 2026) — branch `feat/gh344-split-primary-allocation`; PR pending merge.  
+**User Decisions**: Parens count-hint variant `Category (+N)`; no schema change; no backfill; importer out of scope.  
+**Carry-forward Tech Debt**: Legacy multi-allocation rows self-heal on next edit; `importController.js` bypass unchanged.  
+**Release Note**: Changelog pending entry for #344 added 2026-05-24.  
+**Archive**: `SAMS-Docs/Sprint_Management/Sprint_Archive/Sprint_GH344_Split_Primary_Allocation_2026-05-24/`
+
+---
+
 ### ✅ Sprint GH332-DEPOSIT-WORKFLOW: Desktop Deposit Entry + HOA Local Payment Modal (Complete)
 *Make Deposit a first-class desktop transaction type; stop forcing HOA payment entry through a Transactions view jump; clean up Transactions ActionBar.*
 
