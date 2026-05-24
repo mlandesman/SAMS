@@ -8,12 +8,12 @@
 
 | # | Title | Priority | Est | Status |
 |---|-------|----------|-----|--------|
-| **344** | [Enhancement] Redesign TransactionView to better expose Split transactions | medium | ~4-6h | ✅ COMPLETE (PR #346 — User verified; Manager APPROVED 2026-05-24; BugBot + merge pending) |
+| **344** | [Enhancement] Redesign TransactionView to better expose Split transactions | medium | ~4-6h | ✅ CLOSED (PR #346 merged 2026-05-24; BugBot clean) |
 
 **Theme**: Position-as-meaning primary allocation via write-time sort; desktop TransactionsView cell renderer only.  
 **Risk**: Low (3 files; controller + shared util + one React component). Mitigated by notes-index ordering constraint and User QA on AVII + MTC.  
 **Dependencies**: None.  
-**Status**: ✅ COMPLETE (May 24, 2026) — branch `feat/gh344-split-primary-allocation`; PR #346 open for merge.  
+**Status**: ✅ CLOSED (May 24, 2026) — merged to `main` via PR #346; BugBot clean on first review.  
 **User Decisions**: Parens count-hint variant `Category (+N)`; no schema change; no backfill; importer out of scope.  
 **Carry-forward Tech Debt**: Legacy multi-allocation rows self-heal on next edit; `importController.js` bypass unchanged.  
 **Release Note**: Changelog pending entry for #344 added 2026-05-24.  
