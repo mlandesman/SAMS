@@ -45,6 +45,13 @@
             "332"
           ],
           "text": "Desktop deposit workflow: Expense/Deposit toggle in UnifiedExpenseEntry, local HOA payment modal, Transactions ActionBar cleanup (PR #345)"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "344"
+          ],
+          "text": "TransactionsView split rows show primary category with (+N) count hint; multi-allocation splits sorted by largest amount at write time"
         }
       ]
     },

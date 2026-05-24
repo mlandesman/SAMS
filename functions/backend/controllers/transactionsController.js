@@ -37,6 +37,7 @@ import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { translateNoteToSpanishDeterministicFirst } from '../utils/notesLocalization.js';
 import { toIsoDateOrNull } from '../utils/dateIso.js';
+import { sortAllocationsByPrimary } from '../../shared/utils/allocationUtils.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId } = databaseFieldMappings;
 
@@ -490,6 +491,10 @@ async function createTransaction(clientId, data, options = {}) {
         // Multiple allocations - keep as split transaction
         normalizedData.categoryName = "-Split-";
         normalizedData.categoryId = null; // Clear single category ID since this is split
+        normalizedData.allocations = sortAllocationsByPrimary(normalizedData.allocations);
+        if (normalizedData.allocationSummary) {
+          normalizedData.allocationSummary.allocationType = normalizedData.allocations[0]?.type ?? null;
+        }
         logDebug(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
       }
     }
@@ -890,6 +895,13 @@ async function updateTransaction(clientId, txnId, newData) {
         } else if (hasOwnProperty(originalAllocation, 'notes_es')) {
           incomingAllocation.notes_es = originalAllocation.notes_es;
         }
+      }
+    }
+
+    if (Array.isArray(normalizedData.allocations) && normalizedData.allocations.length > 0) {
+      normalizedData.allocations = sortAllocationsByPrimary(normalizedData.allocations);
+      if (normalizedData.allocationSummary) {
+        normalizedData.allocationSummary.allocationType = normalizedData.allocations[0]?.type ?? null;
       }
     }
     

@@ -200,6 +200,9 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
   const renderCategoryCell = (transaction) => {
     if (isSplitTransaction(transaction)) {
       const isExpanded = expandedSplits.has(transaction.id);
+      const primaryName = transaction.allocations[0]?.categoryName ?? '-Split-';
+      const extraCount = transaction.allocations.length - 1;
+      const splitLabel = extraCount > 0 ? `${primaryName} (+${extraCount})` : primaryName;
       return (
         <div className="split-category-container">
           <div className="split-category-header" onClick={(e) => toggleSplitExpansion(transaction.id, e)}>
@@ -207,7 +210,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
               icon={isExpanded ? faChevronDown : faChevronRight} 
               className="split-chevron"
             />
-            <span className="split-category-text">-Split-</span>
+            <span className="split-category-text">{splitLabel}</span>
           </div>
           {isExpanded && (
             <div className="split-allocations">
